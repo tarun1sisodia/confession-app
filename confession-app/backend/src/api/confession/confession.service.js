@@ -30,8 +30,25 @@ export const getAllConfessions = async (typeFilter) => {
 };
 
 export const getTrendingConfessions = async () => {
-  const confessions = await Confession.find().sort({ likes: -1, createdAt: -1 }).limit(20);
-  return confessions.map(formatConfession);
+  // Score = Likes + (Comments * 2) - Dislikes
+  const confessions = await Confession.aggregate([
+    {
+      $addFields: {
+        score: {
+          $add: [
+            { $ifNull: ["$likes", 0] },
+            { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 2] },
+            { $multiply: [{ $ifNull: ["$dislikes", 0] }, -1] }
+          ]
+        }
+      }
+    },
+    { $sort: { score: -1, createdAt: -1 } },
+    { $limit: 20 }
+  ]);
+  
+  // Convert aggregation plain objects to expected format
+  return confessions.map(doc => formatConfession(doc));
 };
 
 export const createConfession = async (data) => {
@@ -122,4 +139,28 @@ export const voteComment = async (confessionId, commentId, isLike) => {
   
   await confession.save();
   return formatConfession(confession);
+};
+
+export const searchConfessions = async (query) => {
+  if (!query) return [];
+  const confessions = await Confession.find({ text: { $regex: query, $options: 'i' } }).sort({ createdAt: -1 }).limit(50);
+  return confessions.map(formatConfession);
+};
+
+export const dislikeConfession = async (id) => {
+  const confession = await Confession.findByIdAndUpdate(
+    id,
+    { $inc: { dislikes: 1 } },
+    { new: true }
+  );
+  if (!confession) throw new AppError('Confession not found', 404);
+  return confession;
+};
+
+export const getActivity = async (postIds) => {
+  if (!postIds || !Array.isArray(postIds) || postIds.length === 0) return [];
+  
+  // Find posts the user authored, sorting by when they were last interacted with
+  const confessions = await Confession.find({ _id: { $in: postIds } }).sort({ updatedAt: -1 }).limit(30);
+  return confessions.map(formatConfession);
 };

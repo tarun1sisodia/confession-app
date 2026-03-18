@@ -21,6 +21,28 @@ const API = {
             return [];
         }
     },
+    async searchPosts(query) {
+        try {
+            const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            return data.data || [];
+        } catch (e) {
+            return [];
+        }
+    },
+    async getActivity(postIds) {
+        try {
+            const res = await fetch(`${API_BASE}/activity`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ postIds })
+            });
+            const data = await res.json();
+            return data.data || [];
+        } catch (e) {
+            return [];
+        }
+    },
     async addPost(text, type, blurred) {
         const res = await fetch(`${API_BASE}/add`, {
             method: 'POST',
@@ -31,6 +53,9 @@ const API = {
     },
     async likePost(id) {
         return fetch(`${API_BASE}/like/${id}`, { method: 'POST' });
+    },
+    async dislikePost(id) {
+        return fetch(`${API_BASE}/dislike/${id}`, { method: 'POST' });
     },
     async addComment(id, text) {
         const res = await fetch(`${API_BASE}/${id}/comments`, {

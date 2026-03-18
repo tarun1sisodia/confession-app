@@ -42,3 +42,19 @@ export const voteComment = catchAsync(async (req, res) => {
   const confession = await confessionService.voteComment(req.params.id, commentId, isLike);
   res.status(200).json({ status: 'success', message: 'Voted successfully', data: confession });
 });
+
+export const searchConfessions = catchAsync(async (req, res) => {
+  const confessions = await confessionService.searchConfessions(req.query.q);
+  res.status(200).json({ status: 'success', data: confessions });
+});
+
+export const dislikeConfession = catchAsync(async (req, res) => {
+  await confessionService.dislikeConfession(req.params.id);
+  res.status(200).json({ status: 'success', message: 'Disliked successfully' });
+});
+
+export const getActivity = catchAsync(async (req, res) => {
+  const { postIds } = req.body;
+  const activity = await confessionService.getActivity(postIds);
+  res.status(200).json({ status: 'success', data: activity });
+});

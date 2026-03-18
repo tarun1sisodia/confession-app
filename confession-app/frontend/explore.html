@@ -19,17 +19,39 @@
         <!-- Search Bar -->
         <div class="px-4 py-4">
             <div class="relative">
-                <input type="text" placeholder="Search confessions..." class="w-full bg-gray-100 border-none rounded-2xl py-3 px-5 text-sm outline-none focus:ring-2 focus:ring-blue-100 placeholder:text-gray-400 font-medium">
+                <input type="text" oninput="doSearch(this.value)" placeholder="Search confessions..." class="w-full bg-gray-100 border-none rounded-2xl py-3 px-5 text-sm outline-none focus:ring-2 focus:ring-blue-100 placeholder:text-gray-400 font-medium">
                 <svg class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
             </div>
             
-            <div class="mt-8">
+            <div class="mt-8 mb-4">
                 <h3 class="font-bold text-gray-900 mb-4 px-2">Trending Topics</h3>
                 <div class="flex flex-wrap gap-2">
-                    <span class="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold">#heartbreak</span>
-                    <span class="px-4 py-2 bg-purple-50 text-purple-600 rounded-xl text-xs font-bold">#crush</span>
-                    <span class="px-4 py-2 bg-orange-50 text-orange-600 rounded-xl text-xs font-bold">#college</span>
-                    <span class="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-xs font-bold">#office</span>
+                    <button onclick="document.querySelector('input').value='heartbreak'; doSearch('heartbreak')" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold transition-transform active:scale-95">#heartbreak</button>
+                    <button onclick="document.querySelector('input').value='crush'; doSearch('crush')" class="px-4 py-2 bg-purple-50 text-purple-600 rounded-xl text-xs font-bold transition-transform active:scale-95">#crush</button>
+                    <button onclick="document.querySelector('input').value='college'; doSearch('college')" class="px-4 py-2 bg-orange-50 text-orange-600 rounded-xl text-xs font-bold transition-transform active:scale-95">#college</button>
+                    <button onclick="document.querySelector('input').value='office'; doSearch('office')" class="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-xs font-bold transition-transform active:scale-95">#office</button>
+                </div>
+            </div>
+
+            <!-- Feed Container for Explore -->
+            <div id="exploreFeed" class="space-y-5 pb-32"></div>
+        </div>
+
+        <!-- Comment Drawer -->
+        <div id="commentDrawer" class="drawer">
+            <div class="drawer-overlay" onclick="toggleDrawer('commentDrawer', false)"></div>
+            <div class="drawer-content p-6">
+                <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-lg">Comments</h3>
+                    <button onclick="toggleDrawer('commentDrawer', false)" class="text-gray-400">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div id="commentList" class="flex-1 overflow-y-auto no-scrollbar space-y-2"></div>
+                <div class="pt-4 border-t border-gray-100 flex gap-3 items-center">
+                    <input type="text" id="commentInput" placeholder="Add a comment..." class="flex-1 bg-gray-50 border-none rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-100">
+                    <button onclick="submitComment()" class="text-blue-600 font-bold px-2">Post</button>
                 </div>
             </div>
         </div>

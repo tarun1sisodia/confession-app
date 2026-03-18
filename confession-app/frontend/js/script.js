@@ -20,6 +20,26 @@ window.toggleDrawer = function(id, show) {
     else el.classList.remove('active');
 };
 
+function formatPassage(text, id, isBlurred) {
+    if(text.length <= 150) {
+        return `<p class="confession-text ${isBlurred ? 'blur-overlay select-none' : ''}" id="txt-${id}">${escapeHTML(text)}</p>`;
+    } else {
+        const shortForm = escapeHTML(text.substring(0, 150)) + '...';
+        const fullForm = escapeHTML(text);
+        return `
+            <p class="confession-text ${isBlurred ? 'blur-overlay select-none' : ''}" id="txt-${id}">
+                <span id="short-${id}">${shortForm} <button onclick="expandText('${id}')" class="text-blue-500 text-sm font-bold ml-1 active:scale-95 transition-transform">Read more</button></span>
+                <span id="long-${id}" class="hidden">${fullForm}</span>
+            </p>
+        `;
+    }
+}
+
+window.expandText = function(id) {
+    document.getElementById(`short-${id}`).classList.add('hidden');
+    document.getElementById(`long-${id}`).classList.remove('hidden');
+};
+
 window.loadFeed = async function(category = '') {
     currentCategory = category;
     if (feedContainer) feedContainer.innerHTML = '<div class="text-center py-10 text-gray-400 font-bold">Loading insights...</div>';
@@ -31,28 +51,35 @@ window.loadFeed = async function(category = '') {
     window.renderFeed();
 };
 
-window.renderFeed = function() {
-    if (!feedContainer) return;
+window.renderFeed = function(targetEl = feedContainer, data = currentFeedData) {
+    if (!targetEl) return;
     
-    if (currentFeedData.length === 0) {
-        feedContainer.innerHTML = '<div class="text-center py-10 text-gray-400 font-bold">No posts found.</div>';
+    if (data.length === 0) {
+        targetEl.innerHTML = '<div class="text-center py-10 text-gray-400 font-bold">No posts found.</div>';
         return;
     }
 
-    feedContainer.innerHTML = currentFeedData.map(post => `
-        <div class="card card-${post.type || 'deep'} p-6">
+    targetEl.innerHTML = data.map(post => `
+        <div class="card card-${post.type || 'deep'} p-6 mb-5">
             <div class="flex items-center gap-2 mb-3 text-[9px] font-black uppercase text-gray-400">
                 <div class="w-1.5 h-1.5 rounded-full bg-gray-300"></div>${post.type || 'deep'}
             </div>
             <div class="relative">
-                <p class="confession-text ${post.blurred ? 'blur-overlay select-none' : ''}" id="txt-${post._id}">${escapeHTML(post.text)}</p>
+                ${formatPassage(post.text, post._id, post.blurred)}
                 ${post.blurred ? `<button onclick="reveal('${post._id}')" id="btn-${post._id}" class="absolute inset-0 flex items-center justify-center"><span class="bg-white px-4 py-2 rounded-full text-xs font-bold text-blue-600 shadow-sm">Tap to reveal</span></button>` : ''}
             </div>
             <div class="flex items-center gap-6 mt-6">
+                <!-- Like -->
                 <button class="flex items-center gap-1.5 text-gray-400" onclick="like('${post._id}', this)">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.7 0l-1.1 1-1-1a5.5 5.5 0 0 0-7.8 7.8l1.1 1 8.7 8.7 8.8-8.7 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
-                    <span class="text-xs font-bold">${post.likes}</span>
+                    <span class="text-xs font-bold">${post.likes || 0}</span>
                 </button>
+                <!-- Dislike -->
+                <button class="flex items-center gap-1.5 text-gray-400" onclick="dislike('${post._id}', this)">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+                    <span class="text-xs font-bold">${post.dislikes || 0}</span>
+                </button>
+                <!-- Comment -->
                 <button class="flex items-center gap-1.5 text-gray-400" onclick="openComments('${post._id}')">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                     <span class="text-xs font-bold">${(post.comments || []).length}</span>
@@ -79,6 +106,17 @@ window.like = async function(id, btnElement) {
         countSpan.textContent = parseInt(countSpan.textContent) + 1;
         btnElement.classList.remove('text-gray-400');
         btnElement.classList.add('text-red-500');
+    } catch(e) {}
+};
+
+window.dislike = async function(id, btnElement) {
+    if (btnElement.classList.contains('text-blue-500')) return;
+    try {
+        await API.dislikePost(id);
+        const countSpan = btnElement.querySelector('span');
+        countSpan.textContent = parseInt(countSpan.textContent) + 1;
+        btnElement.classList.remove('text-gray-400');
+        btnElement.classList.add('text-blue-500');
     } catch(e) {}
 };
 
@@ -116,7 +154,10 @@ window.submitComment = async function() {
         }
         input.value = '';
         window.openComments(currentPostId);
-        window.renderFeed();
+        
+        // Target specifically whatever container is active 
+        const activeContainer = document.getElementById('feed') || document.getElementById('exploreFeed');
+        window.renderFeed(activeContainer, currentFeedData);
     } catch(e) {}
 };
 
@@ -140,16 +181,52 @@ window.addPost = async function() {
     postBtn.disabled = true;
 
     try {
-        await API.addPost(val, type, blurred);
+        const payload = await API.addPost(val, type, blurred);
+        
+        // Cache this post ID to localStorage so Hearts can track it
+        if (payload?.data?.id || payload?.data?._id) {
+            const myId = payload.data.id || payload.data._id;
+            const myPosts = JSON.parse(localStorage.getItem('myConfessions') || '[]');
+            myPosts.push(myId);
+            localStorage.setItem('myConfessions', JSON.stringify(myPosts));
+        }
+
         window.toggleDrawer('composeModal', false);
         confessionInput.value = '';
-        await window.loadFeed(currentCategory);
+        if (document.getElementById('feed')) await window.loadFeed(currentCategory);
     } catch(e) {
         alert("Failed to post");
     } finally {
         postBtn.textContent = 'Post';
     }
 };
+
+window.doSearch = async function(query) {
+    const feed = document.getElementById('exploreFeed');
+    if (!feed) return;
+    if (!query.trim()) {
+        feed.innerHTML = '<p class="text-center py-10 text-gray-400 font-bold">Search any secret...</p>';
+        return;
+    }
+    feed.innerHTML = '<p class="text-center py-10 text-gray-400 font-bold">Searching...</p>';
+    currentFeedData = await API.searchPosts(query);
+    window.renderFeed(feed, currentFeedData);
+};
+
+window.loadHearts = async function() {
+    const feed = document.getElementById('heartsFeed');
+    if (!feed) return;
+    
+    const myPosts = JSON.parse(localStorage.getItem('myConfessions') || '[]');
+    if (myPosts.length === 0) {
+        feed.innerHTML = '<p class="text-center py-10 text-gray-400 font-bold">No activity yet. Create a post first!</p>';
+        return;
+    }
+
+    feed.innerHTML = '<p class="text-center py-10 text-gray-400 font-bold">Loading activity...</p>';
+    currentFeedData = await API.getActivity(myPosts);
+    window.renderFeed(feed, currentFeedData);
+}
 
 const quotes = ["Be honest here.", "Secrets are lighter when shared.", "You aren't alone.", "Nobody knows it's you."];
 setInterval(() => {
@@ -176,6 +253,7 @@ function escapeHTML(str) {
 if (categoryBtns) {
     categoryBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            if (btn.hasAttribute('onclick')) return; // handled manually
             categoryBtns.forEach(b => {
                 b.classList.remove('bg-black', 'text-white');
                 b.classList.add('bg-white', 'text-gray-500');
@@ -187,6 +265,6 @@ if (categoryBtns) {
     });
 }
 
-if (document.getElementById('feed')) {
-    window.loadFeed('');
-}
+// Bootstrap routes
+if (document.getElementById('feed')) window.loadFeed('');
+if (document.getElementById('heartsFeed')) window.loadHearts();
