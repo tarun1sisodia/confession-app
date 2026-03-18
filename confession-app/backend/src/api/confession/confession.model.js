@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const commentSchema = new mongoose.Schema({
   text: { type: String, required: true, maxlength: 500 },
@@ -49,4 +49,5 @@ const confessionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-module.exports = mongoose.model('Confession', confessionSchema);
+const Confession = mongoose.model('Confession', confessionSchema);
+export default Confession;

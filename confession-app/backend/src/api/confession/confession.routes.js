@@ -1,6 +1,7 @@
-const express = require('express');
+import express from 'express';
+import * as confessionController from './confession.controller.js';
+
 const router = express.Router();
-const confessionController = require('./confession.controller');
 
 router.get('/', confessionController.getConfessions);
 router.get('/trending', confessionController.getTrending);
@@ -13,4 +14,4 @@ router.post('/report/:id', confessionController.reportConfession);
 router.post('/:id/comments', confessionController.addComment);
 router.post('/:id/comments/:commentId/vote', confessionController.voteComment);
 
-module.exports = router;
+export default router;

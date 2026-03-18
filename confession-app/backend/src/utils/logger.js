@@ -3,4 +3,4 @@ const logger = {
   error: (msg, meta = '') => console.error(`[ERROR] ${new Date().toISOString()} - ${msg}`, meta)
 };
 
-module.exports = logger;
+export default logger;

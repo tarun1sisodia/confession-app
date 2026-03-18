@@ -1,7 +1,7 @@
-const env = require('./config/env');
-const connectDB = require('./config/database');
-const app = require('./app');
-const logger = require('./utils/logger');
+import env from './config/env.js';
+import connectDB from './config/database.js';
+import app from './app.js';
+import logger from './utils/logger.js';
 
 // Catch synchronous exceptions
 process.on('uncaughtException', err => {

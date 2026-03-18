@@ -1,6 +1,6 @@
-const Confession = require('./confession.model');
-const { containsBadWords } = require('./confession.utils');
-const AppError = require('../../utils/AppError');
+import Confession from './confession.model.js';
+import { containsBadWords } from './confession.utils.js';
+import AppError from '../../utils/AppError.js';
 
 const getTimeAgo = (date) => {
   const seconds = Math.floor((new Date() - date) / 1000);
@@ -18,25 +18,23 @@ const formatConfession = (doc) => {
     obj.comments.forEach(c => {
       c.timeAgo = getTimeAgo(c.createdAt || new Date());
     });
-    // sort comments by likes mostly
     obj.comments.sort((a, b) => b.likes - a.likes);
   }
   return obj;
 };
 
-exports.getAllConfessions = async (typeFilter) => {
+export const getAllConfessions = async (typeFilter) => {
   const query = typeFilter ? { type: typeFilter } : {};
-  // Lean output is generally faster for pure reads if we don't save back
   const confessions = await Confession.find(query).sort({ createdAt: -1 }).limit(100);
   return confessions.map(formatConfession);
 };
 
-exports.getTrendingConfessions = async () => {
+export const getTrendingConfessions = async () => {
   const confessions = await Confession.find().sort({ likes: -1, createdAt: -1 }).limit(20);
   return confessions.map(formatConfession);
 };
 
-exports.createConfession = async (data) => {
+export const createConfession = async (data) => {
   if (!data.text || data.text.trim() === '') {
     throw new AppError('Confession text cannot be empty', 400);
   }
@@ -57,7 +55,7 @@ exports.createConfession = async (data) => {
   return formatConfession(confession);
 };
 
-exports.likeConfession = async (id) => {
+export const likeConfession = async (id) => {
   const confession = await Confession.findByIdAndUpdate(
     id,
     { $inc: { likes: 1 } },
@@ -67,7 +65,7 @@ exports.likeConfession = async (id) => {
   return confession;
 };
 
-exports.reactToConfession = async (id, type) => {
+export const reactToConfession = async (id, type) => {
   if (!['funny', 'sad', 'relatable'].includes(type)) {
     throw new AppError('Invalid reaction type', 400);
   }
@@ -83,7 +81,7 @@ exports.reactToConfession = async (id, type) => {
   return type;
 };
 
-exports.reportConfession = async (id) => {
+export const reportConfession = async (id) => {
   const confession = await Confession.findByIdAndUpdate(
     id,
     { $inc: { reports: 1 }, $set: { isReported: true } },
@@ -93,7 +91,7 @@ exports.reportConfession = async (id) => {
   return confession;
 };
 
-exports.addComment = async (confessionId, text) => {
+export const addComment = async (confessionId, text) => {
   if (!text || text.trim() === '') {
     throw new AppError('Comment text cannot be empty', 400);
   }
@@ -109,7 +107,7 @@ exports.addComment = async (confessionId, text) => {
   return formatConfession(confession);
 };
 
-exports.voteComment = async (confessionId, commentId, isLike) => {
+export const voteComment = async (confessionId, commentId, isLike) => {
   const confession = await Confession.findById(confessionId);
   if (!confession) throw new AppError('Confession not found', 404);
 

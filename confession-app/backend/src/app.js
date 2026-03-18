@@ -1,8 +1,8 @@
-const express = require('express');
-const cors = require('cors');
-const confessionRoutes = require('./api/confession/confession.routes');
-const errorMiddleware = require('./middlewares/error.middleware');
-const AppError = require('./utils/AppError');
+import express from 'express';
+import cors from 'cors';
+import confessionRoutes from './api/confession/confession.routes.js';
+import errorMiddleware from './middlewares/error.middleware.js';
+import AppError from './utils/AppError.js';
 
 const app = express();
 
@@ -26,4 +26,4 @@ app.all('*', (req, res, next) => {
 // Global Error Handling Middleware
 app.use(errorMiddleware);
 
-module.exports = app;
+export default app;
