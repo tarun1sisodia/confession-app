@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#ffffff">
+    <title>Explore Confessions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md px-6 pt-10 pb-4 border-b border-gray-100 flex items-center justify-between">
+            <h1 class="text-2xl font-bold tracking-tight text-gray-900">Explore</h1>
+        </header>
+
+        <!-- Search Bar -->
+        <div class="px-4 py-4">
+            <div class="relative">
+                <input type="text" placeholder="Search confessions..." class="w-full bg-gray-100 border-none rounded-2xl py-3 px-5 text-sm outline-none focus:ring-2 focus:ring-blue-100 placeholder:text-gray-400 font-medium">
+                <svg class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            
+            <div class="mt-8">
+                <h3 class="font-bold text-gray-900 mb-4 px-2">Trending Topics</h3>
+                <div class="flex flex-wrap gap-2">
+                    <span class="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold">#heartbreak</span>
+                    <span class="px-4 py-2 bg-purple-50 text-purple-600 rounded-xl text-xs font-bold">#crush</span>
+                    <span class="px-4 py-2 bg-orange-50 text-orange-600 rounded-xl text-xs font-bold">#college</span>
+                    <span class="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-xs font-bold">#office</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Nav -->
+        <nav class="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto flex justify-around items-center h-20 z-40 bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 pb-4">
+            <a href="index.html" class="flex flex-col items-center gap-1 text-gray-400">
+                <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span class="text-[9px] font-black">HOME</span>
+            </a>
+            <a href="explore.html" class="flex flex-col items-center gap-1 text-blue-600">
+                <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <span class="text-[9px] font-black">EXPLORE</span>
+            </a>
+            <a href="hearts.html" class="flex flex-col items-center gap-1 text-gray-400">
+                <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.7 0l-1.1 1-1-1a5.5 5.5 0 0 0-7.8 7.8l1.1 1 8.7 8.7 8.8-8.7 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+                <span class="text-[9px] font-black">HEARTS</span>
+            </a>
+        </nav>
+    </div>
+</body>
+</html>
