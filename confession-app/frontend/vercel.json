@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://confession-app-dx2k.onrender.com/api/:path*"
+    }
+  ]
+}

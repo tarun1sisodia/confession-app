@@ -8,7 +8,11 @@ import AppError from './utils/AppError.js';
 const app = express();
 
 // Global Middlewares
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json({ limit: '10kb' })); 
 
 // Health Check
