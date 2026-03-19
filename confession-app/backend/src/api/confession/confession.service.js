@@ -1,4 +1,5 @@
 import Confession from './confession.model.js';
+import Vote from './vote.model.js';
 import { containsBadWords } from './confession.utils.js';
 import AppError from '../../utils/AppError.js';
 
@@ -76,14 +77,27 @@ export const createConfession = async (data) => {
   return formatConfession(confession);
 };
 
-export const likeConfession = async (id) => {
-  const confession = await Confession.findByIdAndUpdate(
-    id,
-    { $inc: { likes: 1 } },
-    { new: true }
-  );
-  if (!confession) throw new AppError('Confession not found', 404);
-  return confession;
+export const likeConfession = async (id, deviceId) => {
+  if (!deviceId) throw new AppError('Device ID is required', 400);
+
+  const existingVote = await Vote.findOne({ confessionId: id, deviceId });
+
+  if (existingVote) {
+    if (existingVote.voteType === 'like') {
+      // Toggle off: Remove vote
+      await Vote.deleteOne({ _id: existingVote._id });
+      return await Confession.findByIdAndUpdate(id, { $inc: { likes: -1 } }, { new: true });
+    } else {
+      // Change from dislike to like
+      existingVote.voteType = 'like';
+      await existingVote.save();
+      return await Confession.findByIdAndUpdate(id, { $inc: { likes: 1, dislikes: -1 } }, { new: true });
+    }
+  }
+
+  // New vote
+  await Vote.create({ confessionId: id, deviceId, voteType: 'like' });
+  return await Confession.findByIdAndUpdate(id, { $inc: { likes: 1 } }, { new: true });
 };
 
 export const reactToConfession = async (id, type) => {
@@ -151,14 +165,27 @@ export const searchConfessions = async (query) => {
   return confessions.map(formatConfession);
 };
 
-export const dislikeConfession = async (id) => {
-  const confession = await Confession.findByIdAndUpdate(
-    id,
-    { $inc: { dislikes: 1 } },
-    { new: true }
-  );
-  if (!confession) throw new AppError('Confession not found', 404);
-  return confession;
+export const dislikeConfession = async (id, deviceId) => {
+  if (!deviceId) throw new AppError('Device ID is required', 400);
+
+  const existingVote = await Vote.findOne({ confessionId: id, deviceId });
+
+  if (existingVote) {
+    if (existingVote.voteType === 'dislike') {
+      // Toggle off: Remove vote
+      await Vote.deleteOne({ _id: existingVote._id });
+      return await Confession.findByIdAndUpdate(id, { $inc: { dislikes: -1 } }, { new: true });
+    } else {
+      // Change from like to dislike
+      existingVote.voteType = 'dislike';
+      await existingVote.save();
+      return await Confession.findByIdAndUpdate(id, { $inc: { likes: -1, dislikes: 1 } }, { new: true });
+    }
+  }
+
+  // New vote
+  await Vote.create({ confessionId: id, deviceId, voteType: 'dislike' });
+  return await Confession.findByIdAndUpdate(id, { $inc: { dislikes: 1 } }, { new: true });
 };
 
 export const getActivity = async (postIds) => {

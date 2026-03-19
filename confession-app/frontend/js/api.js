@@ -53,11 +53,19 @@ const API = {
         });
         return res.json();
     },
-    async likePost(id) {
-        return fetch(`${API_BASE}/like/${id}`, { method: 'POST' });
+    async likePost(id, deviceId) {
+        return fetch(`${API_BASE}/like/${id}`, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId })
+        });
     },
-    async dislikePost(id) {
-        return fetch(`${API_BASE}/dislike/${id}`, { method: 'POST' });
+    async dislikePost(id, deviceId) {
+        return fetch(`${API_BASE}/dislike/${id}`, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId })
+        });
     },
     async addComment(id, text) {
         const res = await fetch(`${API_BASE}/${id}/comments`, {

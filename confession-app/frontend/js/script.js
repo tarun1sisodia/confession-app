@@ -223,7 +223,7 @@ window.reveal = function(id) {
 window.like = async function(id, btnElement) {
     if (btnElement.classList.contains('text-red-500')) return;
     try {
-        await API.likePost(id);
+        await API.likePost(id, myDeviceId);
         const countSpan = btnElement.querySelector('span');
         countSpan.textContent = parseInt(countSpan.textContent) + 1;
         btnElement.classList.remove('text-gray-400');
@@ -234,7 +234,7 @@ window.like = async function(id, btnElement) {
 window.dislike = async function(id, btnElement) {
     if (btnElement.classList.contains('text-blue-500')) return;
     try {
-        await API.dislikePost(id);
+        await API.dislikePost(id, myDeviceId);
         const countSpan = btnElement.querySelector('span');
         countSpan.textContent = parseInt(countSpan.textContent) + 1;
         btnElement.classList.remove('text-gray-400');

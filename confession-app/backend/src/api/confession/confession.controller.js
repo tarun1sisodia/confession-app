@@ -19,8 +19,9 @@ export const addConfession = catchAsync(async (req, res) => {
 });
 
 export const likeConfession = catchAsync(async (req, res) => {
-  await confessionService.likeConfession(req.params.id);
-  res.status(200).json({ status: 'success', message: 'Liked successfully' });
+  const { deviceId } = req.body;
+  await confessionService.likeConfession(req.params.id, deviceId);
+  res.status(200).json({ status: 'success', message: 'Vote processed' });
 });
 
 export const reactConfession = catchAsync(async (req, res) => {
@@ -51,8 +52,9 @@ export const searchConfessions = catchAsync(async (req, res) => {
 });
 
 export const dislikeConfession = catchAsync(async (req, res) => {
-  await confessionService.dislikeConfession(req.params.id);
-  res.status(200).json({ status: 'success', message: 'Disliked successfully' });
+  const { deviceId } = req.body;
+  await confessionService.dislikeConfession(req.params.id, deviceId);
+  res.status(200).json({ status: 'success', message: 'Vote processed' });
 });
 
 export const getActivity = catchAsync(async (req, res) => {
