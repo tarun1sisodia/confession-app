@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import confessionRoutes from './api/confession/confession.routes.js';
+import settingsRoutes from './api/theme/settings.routes.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 import AppError from './utils/AppError.js';
 
@@ -17,6 +18,7 @@ app.get('/health', (req, res) => {
 
 // Domain Routes
 app.use('/api/confessions', confessionRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Undefined Routes Handler
 app.all('*', (req, res, next) => {

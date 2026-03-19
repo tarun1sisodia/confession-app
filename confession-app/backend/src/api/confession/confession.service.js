@@ -18,7 +18,7 @@ const formatConfession = (doc) => {
     obj.comments.forEach(c => {
       c.timeAgo = getTimeAgo(c.createdAt || new Date());
     });
-    obj.comments.sort((a, b) => b.likes - a.likes);
+    obj.comments.sort((a, b) => (b.likes - b.dislikes) - (a.likes - a.dislikes));
   }
   return obj;
 };

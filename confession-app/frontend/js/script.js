@@ -1,6 +1,81 @@
 let currentPostId = null;
 let currentFeedData = [];
 let currentCategory = ''; 
+let currentCommentSort = 'top';
+
+let myDeviceId = localStorage.getItem('deviceId');
+if (!myDeviceId) {
+    myDeviceId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+    localStorage.setItem('deviceId', myDeviceId);
+}
+let userSettings = { theme: 'system', revealEnabled: true };
+
+window.applyTheme = function(themeStr) {
+    if (themeStr === 'system') {
+        const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.classList.toggle('dark-mode', isDark);
+    } else {
+        document.body.classList.toggle('dark-mode', themeStr === 'dark');
+    }
+};
+
+window.cycleTheme = async function() {
+    if (userSettings.theme === 'system') userSettings.theme = 'light';
+    else if (userSettings.theme === 'light') userSettings.theme = 'dark';
+    else userSettings.theme = 'system';
+    
+    window.applyTheme(userSettings.theme);
+    window.updateSettingsUI();
+    await API.updateSettings(myDeviceId, { theme: userSettings.theme });
+};
+
+window.toggleRevealSetting = async function() {
+    userSettings.revealEnabled = !userSettings.revealEnabled;
+    window.updateSettingsUI();
+    await API.updateSettings(myDeviceId, { revealEnabled: userSettings.revealEnabled });
+    if (document.getElementById('feed')) window.loadFeed(currentCategory);
+};
+
+window.updateSettingsUI = function() {
+    const themeBtn = document.getElementById('themeToggleBtn');
+    if (themeBtn) {
+        if (userSettings.theme === 'dark') themeBtn.innerHTML = '🌙';
+        else if (userSettings.theme === 'light') themeBtn.innerHTML = '☀️';
+        else themeBtn.innerHTML = '⚙️';
+    }
+    
+    const revealBtn = document.getElementById('revealToggleBtn');
+    if (revealBtn) {
+        revealBtn.innerHTML = userSettings.revealEnabled ? '👁️ Blur: ON' : '🔓 Blur: OFF';
+    }
+};
+
+window.initSettings = async function() {
+    const data = await API.getSettings(myDeviceId);
+    userSettings = data;
+    window.applyTheme(userSettings.theme);
+    window.updateSettingsUI();
+};
+
+window.appendHashtag = function() {
+    const tags = ['#secret', '#truth', '#vent', '#heartbreak', '#crush', '#life', '#mood'];
+    const tag = tags[Math.floor(Math.random() * tags.length)];
+    confessionInput.value += ' ' + tag;
+    confessionInput.dispatchEvent(new Event('input'));
+};
+
+window.appendHeart = function() {
+    const hearts = ['❤️', '✨', '🔥', '🥺', '🦋', '🙌', '💯'];
+    const heart = hearts[Math.floor(Math.random() * hearts.length)];
+    confessionInput.value += ' ' + heart;
+    confessionInput.dispatchEvent(new Event('input'));
+};
+
+if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (currentTheme === 'system') window.applyTheme('system');
+    });
+}
 
 const feedContainer = document.getElementById('feed');
 const confessionInput = document.getElementById('confessionInput');
@@ -65,8 +140,8 @@ window.renderFeed = function(targetEl = feedContainer, data = currentFeedData) {
                 <div class="w-1.5 h-1.5 rounded-full bg-gray-300"></div>${post.type || 'deep'}
             </div>
             <div class="relative">
-                ${formatPassage(post.text, post._id, post.blurred)}
-                ${post.blurred ? `<button onclick="reveal('${post._id}')" id="btn-${post._id}" class="absolute inset-0 flex items-center justify-center"><span class="bg-white px-4 py-2 rounded-full text-xs font-bold text-blue-600 shadow-sm">Tap to reveal</span></button>` : ''}
+                ${formatPassage(post.text, post._id, post.blurred && userSettings.revealEnabled)}
+                ${(post.blurred && userSettings.revealEnabled) ? `<button onclick="reveal('${post._id}')" id="btn-${post._id}" class="absolute inset-0 flex items-center justify-center"><span class="bg-white px-4 py-2 rounded-full text-xs font-bold text-blue-600 shadow-sm">Tap to reveal</span></button>` : ''}
             </div>
             <div class="flex items-center gap-6 mt-6">
                 <!-- Like -->
@@ -125,8 +200,18 @@ window.openComments = function(postId) {
     const post = currentFeedData.find(p => p._id === postId);
     if (!post) return;
     
+    let commentsToRender = [];
+    if (post.comments) {
+        commentsToRender = [...post.comments];
+        if (currentCommentSort === 'newest') {
+            commentsToRender.sort((a, b) => b._id.localeCompare(a._id));
+        } else {
+            commentsToRender.sort((a, b) => (b.likes - b.dislikes) - (a.likes - a.dislikes));
+        }
+    }
+    
     const list = document.getElementById('commentList');
-    list.innerHTML = (post.comments && post.comments.length) ? post.comments.map(c => `
+    list.innerHTML = commentsToRender.length ? commentsToRender.map(c => `
         <div class="comment-item flex justify-between items-start">
             <div class="pr-4">
                 <p class="text-[10px] font-bold text-gray-400 mb-1">Anonymous &middot; ${c.timeAgo || 'Just now'}</p>
@@ -140,6 +225,26 @@ window.openComments = function(postId) {
     `).join('') : '<p class="text-center py-10 text-gray-300 text-sm">No comments yet. Be the first!</p>';
     
     window.toggleDrawer('commentDrawer', true);
+};
+
+window.setCommentSort = function(mode) {
+    currentCommentSort = mode;
+    const btnTop = document.getElementById('sortTopBtn');
+    const btnNewest = document.getElementById('sortNewestBtn');
+    
+    if (btnTop && btnNewest) {
+        if (mode === 'top') {
+            btnTop.className = 'px-3 py-1 text-xs font-bold bg-white text-gray-900 shadow-sm rounded-md transition-all';
+            btnNewest.className = 'px-3 py-1 text-xs font-bold text-gray-500 rounded-md transition-all';
+        } else {
+            btnNewest.className = 'px-3 py-1 text-xs font-bold bg-white text-gray-900 shadow-sm rounded-md transition-all';
+            btnTop.className = 'px-3 py-1 text-xs font-bold text-gray-500 rounded-md transition-all';
+        }
+    }
+    
+    if (currentPostId) {
+        window.openComments(currentPostId);
+    }
 };
 
 window.submitComment = async function() {
@@ -268,3 +373,4 @@ if (categoryBtns) {
 // Bootstrap routes
 if (document.getElementById('feed')) window.loadFeed('');
 if (document.getElementById('heartsFeed')) window.loadHearts();
+window.initSettings();

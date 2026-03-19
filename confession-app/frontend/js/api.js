@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:5000/api/confessions';
+const BASE_URL = 'http://localhost:5000/api';
+const API_BASE = `${BASE_URL}/confessions`;
 
 const API = {
     async getFeed(type = '') {
@@ -71,5 +72,23 @@ const API = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ isLike })
         });
+    },
+    async getSettings(deviceId) {
+        try {
+            const res = await fetch(`${BASE_URL}/settings/${deviceId}`);
+            const data = await res.json();
+            return data.data || { theme: 'system', revealEnabled: true };
+        } catch(e) { return { theme: 'system', revealEnabled: true }; }
+    },
+    async updateSettings(deviceId, settings) {
+        try {
+            const res = await fetch(`${BASE_URL}/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceId, ...settings })
+            });
+            const data = await res.json();
+            return data.data;
+        } catch(e) { return null; }
     }
 };
