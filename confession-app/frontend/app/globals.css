@@ -13,6 +13,9 @@
   --surface-1: #ffffff;
   --surface-2: #f8faff;
   --surface-3: #edf2fd;
+  --ambient-a: rgba(26, 115, 232, 0.18);
+  --ambient-b: rgba(52, 168, 83, 0.12);
+  --ambient-c: rgba(251, 188, 4, 0.12);
   --text-scale: 1;
   --radius-scale: 1;
 }
@@ -32,6 +35,9 @@
   --surface-1: #1b1f27;
   --surface-2: #20242d;
   --surface-3: #252b36;
+  --ambient-a: rgba(138, 180, 248, 0.14);
+  --ambient-b: rgba(129, 201, 149, 0.1);
+  --ambient-c: rgba(251, 188, 4, 0.08);
 }
 
 * {
@@ -54,9 +60,9 @@ body {
   font-family: var(--font-sans), sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(26, 115, 232, 0.18), transparent 22%),
-    radial-gradient(circle at top right, rgba(52, 168, 83, 0.12), transparent 20%),
-    radial-gradient(circle at bottom left, rgba(251, 188, 4, 0.12), transparent 18%),
+    radial-gradient(circle at top left, var(--ambient-a), transparent 22%),
+    radial-gradient(circle at top right, var(--ambient-b), transparent 20%),
+    radial-gradient(circle at bottom left, var(--ambient-c), transparent 18%),
     linear-gradient(180deg, #ffffff 0%, var(--bg) 100%);
   transition: background 180ms ease, color 180ms ease;
   padding-bottom: max(5.5rem, env(safe-area-inset-bottom));
@@ -64,8 +70,8 @@ body {
 
 :root[data-theme="dark"] body {
   background:
-    radial-gradient(circle at top left, rgba(138, 180, 248, 0.14), transparent 24%),
-    radial-gradient(circle at top right, rgba(129, 201, 149, 0.1), transparent 20%),
+    radial-gradient(circle at top left, var(--ambient-a), transparent 24%),
+    radial-gradient(circle at top right, var(--ambient-b), transparent 20%),
     linear-gradient(180deg, #0f1116 0%, var(--bg) 100%);
 }
 
@@ -183,6 +189,7 @@ textarea:focus-visible {
 }
 
 .hero-topline,
+.hero-header,
 .panel-header,
 .modal-header,
 .comment-footer,
@@ -203,6 +210,33 @@ textarea:focus-visible {
 
 .hero-topline {
   align-items: flex-start;
+}
+
+.hero-header {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.hero-quick-actions {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.icon-button,
+.text-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.icon-button {
+  width: 2.9rem;
+  height: 2.9rem;
+  border-radius: calc(1rem * var(--radius-scale));
+  border: 1px solid var(--line);
+  background: var(--card-strong);
+  color: var(--text);
 }
 
 .brand-mark {
@@ -318,6 +352,10 @@ h2 {
 
 .ghost-button {
   color: var(--muted);
+}
+
+.text-link-button {
+  min-height: 3rem;
 }
 
 .primary-button:hover,
@@ -561,6 +599,12 @@ h2 {
   color: #ffffff;
   font-size: 2rem;
   box-shadow: 0 20px 40px rgba(11, 87, 208, 0.28);
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.floating-compose.hidden {
+  transform: translateY(7rem);
+  opacity: 0;
 }
 
 .overlay {
@@ -675,6 +719,7 @@ h2 {
   -webkit-backdrop-filter: blur(22px);
   box-shadow: var(--shadow);
   z-index: 25;
+  transition: transform 180ms ease, opacity 180ms ease;
 }
 
 :root[data-theme="dark"] .bottom-nav {
@@ -690,9 +735,96 @@ h2 {
   padding: 0.85rem 0.7rem;
 }
 
+.bottom-nav.hidden {
+  transform: translate(-50%, 7rem);
+  opacity: 0;
+}
+
 .settings-card {
   max-height: min(86vh, 900px);
   overflow: auto;
+}
+
+.settings-page {
+  min-height: 100vh;
+  padding: 2rem 0 6rem;
+}
+
+.settings-shell {
+  width: min(1120px, calc(100vw - 2rem));
+  margin: 0 auto;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.settings-page-header,
+.settings-grid-two,
+.preview-actions {
+  display: grid;
+  gap: 1rem;
+}
+
+.settings-page-header {
+  grid-template-columns: 1fr auto;
+  align-items: start;
+}
+
+.settings-panel,
+.preview-card {
+  border: 1px solid var(--line);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  border-radius: calc(2rem * var(--radius-scale));
+  padding: 1.4rem;
+}
+
+.settings-block {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.settings-help,
+.preset-meta {
+  color: var(--muted);
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.preset-card {
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--surface-1), var(--surface-2));
+  color: var(--text);
+  border-radius: calc(1.25rem * var(--radius-scale));
+  padding: 0.9rem;
+  text-align: left;
+}
+
+.preset-card.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #ffffff;
+}
+
+.preset-card.active .preset-meta {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.preset-label {
+  display: block;
+  font-weight: 700;
+}
+
+.preview-card {
+  margin-top: 1rem;
+}
+
+.preview-copy {
+  margin-top: 0.75rem;
+  color: var(--muted);
 }
 
 .settings-group,
@@ -800,7 +932,9 @@ body,
 @media (max-width: 900px) {
   .feed-grid,
   .metrics-grid,
-  .insight-grid {
+  .insight-grid,
+  .preset-grid,
+  .settings-grid-two {
     grid-template-columns: 1fr;
   }
 
@@ -834,11 +968,14 @@ body,
   }
 
   .hero-actions,
+  .hero-header,
   .panel-header,
   .compose-footer,
   .comment-input-row,
-  .comment-footer {
+  .comment-footer,
+  .settings-page-header {
     align-items: stretch;
+    grid-template-columns: 1fr;
     flex-direction: column;
   }
 

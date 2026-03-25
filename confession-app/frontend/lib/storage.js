@@ -4,9 +4,9 @@ export const BOOKMARKS_KEY = "bookmarkedConfessions";
 export const UI_SETTINGS_KEY = "confesslyUiSettings";
 
 export const DEFAULT_UI_SETTINGS = {
-  accent: "blue",
-  surface: "mist",
+  presetId: "blue-mist",
   font: "default",
+  textTone: "standard",
   textScale: 1,
   radius: 1
 };

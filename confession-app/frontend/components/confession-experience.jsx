@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   addComment,
   addPost,
@@ -15,14 +15,13 @@ import {
   voteComment,
   votePost
 } from "@/lib/api";
+import { applyUiSettings } from "@/lib/customization";
 import {
-  DEFAULT_UI_SETTINGS,
   getBookmarks,
   getDeviceId,
   getMyPosts,
   getUiSettings,
   saveMyPost,
-  saveUiSettings,
   toggleBookmark
 } from "@/lib/storage";
 import {
@@ -49,16 +48,12 @@ const REACTION_OPTIONS = [
   { label: "Chaotic", value: "funny" }
 ];
 
-const ACCENT_PRESETS = ["blue", "green", "rose", "orange"];
-const SURFACE_PRESETS = ["mist", "paper", "night", "mint"];
-const FONT_PRESETS = ["default", "rounded", "classic", "mono"];
-
 export function ConfessionExperience({ mode }) {
   const [bookmarks, setBookmarks] = useState([]);
   const [deviceId, setDeviceId] = useState("");
   const [settings, setSettings] = useState({ theme: "system", revealEnabled: true });
+  const [uiSettings, setUiSettings] = useState(getUiSettings());
   const [postVotes, setPostVotes] = useState({});
-  const [uiSettings, setUiSettings] = useState(DEFAULT_UI_SETTINGS);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState(mode === "home" ? "" : "trending");
   const [posts, setPosts] = useState([]);
@@ -67,14 +62,15 @@ export function ConfessionExperience({ mode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isComposeOpen, setIsComposeOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [composeText, setComposeText] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
   const [activePostId, setActivePostId] = useState("");
   const [commentSort, setCommentSort] = useState("top");
   const [searchInput, setSearchInput] = useState("");
+  const [navHidden, setNavHidden] = useState(false);
   const deferredSearch = useDeferredValue(searchInput);
   const [isPending, startTransition] = useTransition();
+  const lastScrollRef = useRef(0);
 
   const activePost = useMemo(
     () => posts.find((post) => post._id === activePostId) || null,
@@ -91,7 +87,9 @@ export function ConfessionExperience({ mode }) {
       return clone.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     }
 
-    return clone.sort((a, b) => (b.likes || 0) - (b.dislikes || 0) - ((a.likes || 0) - (a.dislikes || 0)));
+    return clone.sort(
+      (a, b) => (b.likes || 0) - (b.dislikes || 0) - ((a.likes || 0) - (a.dislikes || 0))
+    );
   }, [activePost, commentSort]);
 
   const metrics = useMemo(() => {
@@ -122,40 +120,62 @@ export function ConfessionExperience({ mode }) {
     return [...posts].sort((a, b) => getScore(b) - getScore(a));
   }, [mode, posts]);
 
+  function resolveTheme(theme) {
+    if (theme === "system") {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+
+    return theme;
+  }
+
   function applyTheme(theme) {
     if (typeof document === "undefined") {
       return;
     }
 
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldUseDark = theme === "dark" || (theme === "system" && prefersDark);
-    document.documentElement.dataset.theme = shouldUseDark ? "dark" : "light";
-  }
-
-  function updateUiSettings(patch) {
-    const next = saveUiSettings({ ...uiSettings, ...patch });
-    setUiSettings(next);
+    const resolvedTheme = resolveTheme(theme);
+    document.documentElement.dataset.theme = resolvedTheme;
+    applyUiSettings(uiSettings, resolvedTheme);
   }
 
   useEffect(() => {
     const nextDeviceId = getDeviceId();
+    const nextUi = getUiSettings();
     setDeviceId(nextDeviceId);
     setBookmarks(getBookmarks());
-    setUiSettings(getUiSettings());
+    setUiSettings(nextUi);
 
     getSettings(nextDeviceId)
       .then((data) => {
         setSettings(data);
-        applyTheme(data.theme);
+        document.documentElement.dataset.theme = resolveTheme(data.theme);
+        applyUiSettings(nextUi, resolveTheme(data.theme));
       })
       .catch(() => {
-        applyTheme("system");
+        document.documentElement.dataset.theme = resolveTheme("system");
+        applyUiSettings(nextUi, resolveTheme("system"));
       });
   }, []);
 
   useEffect(() => {
-    applyUiSettings(uiSettings);
-  }, [uiSettings]);
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    function handleScroll() {
+      const current = window.scrollY;
+      const previous = lastScrollRef.current;
+      if (current > previous && current > 96) {
+        setNavHidden(true);
+      } else {
+        setNavHidden(false);
+      }
+      lastScrollRef.current = current;
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -164,6 +184,10 @@ export function ConfessionExperience({ mode }) {
 
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    applyUiSettings(uiSettings, resolveTheme(settings.theme));
+  }, [settings.theme, uiSettings]);
 
   useEffect(() => {
     if (!deviceId) {
@@ -259,13 +283,17 @@ export function ConfessionExperience({ mode }) {
     }
 
     setPostVotes((current) => ({ ...current, [postId]: voteType }));
-    setPosts((current) => current.map((post) => applyOptimisticVote(post, postId, previousVote, voteType)));
+    setPosts((current) =>
+      current.map((post) => applyOptimisticVote(post, postId, previousVote, voteType))
+    );
 
     try {
       await votePost(postId, voteType, deviceId);
     } catch {
       setPostVotes((current) => ({ ...current, [postId]: previousVote }));
-      setPosts((current) => current.map((post) => applyOptimisticVote(post, postId, voteType, previousVote)));
+      setPosts((current) =>
+        current.map((post) => applyOptimisticVote(post, postId, voteType, previousVote))
+      );
       setError("Vote failed. Please try again.");
     }
   }
@@ -388,11 +416,21 @@ export function ConfessionExperience({ mode }) {
 
       <main className="frame">
         <section className="hero-card">
-          <div className="hero-topline">
-            <span className="brand-mark">C</span>
-            <div>
-              <p className="eyebrow">Confessly</p>
-              <h1>Anonymous honesty, redesigned for speed.</h1>
+          <div className="hero-header">
+            <div className="hero-topline">
+              <span className="brand-mark">C</span>
+              <div>
+                <p className="eyebrow">Confessly</p>
+                <h1>Anonymous honesty, redesigned for speed.</h1>
+              </div>
+            </div>
+            <div className="hero-quick-actions">
+              <button className="icon-button" onClick={cycleTheme} aria-label="Toggle theme">
+                <GearIcon icon="theme" />
+              </button>
+              <Link href="/settings" className="icon-button" aria-label="Open settings">
+                <GearIcon icon="settings" />
+              </Link>
             </div>
           </div>
 
@@ -405,12 +443,9 @@ export function ConfessionExperience({ mode }) {
             <button className="secondary-button" onClick={toggleReveal}>
               Blur {settings.revealEnabled ? "on" : "off"}
             </button>
-            <button className="ghost-button" onClick={cycleTheme}>
-              Theme: {settings.theme}
-            </button>
-            <button className="ghost-button" onClick={() => setIsSettingsOpen(true)}>
-              Settings
-            </button>
+            <Link href="/settings" className="ghost-button text-link-button">
+              Personalize
+            </Link>
           </div>
 
           <div className="metrics-grid">
@@ -457,11 +492,7 @@ export function ConfessionExperience({ mode }) {
 
                 <div className="chip-row">
                   {TRENDING_TOPICS.map((topic) => (
-                    <button
-                      key={topic}
-                      className="topic-chip"
-                      onClick={() => setSearchInput(topic)}
-                    >
+                    <button key={topic} className="topic-chip" onClick={() => setSearchInput(topic)}>
                       #{topic}
                     </button>
                   ))}
@@ -472,9 +503,7 @@ export function ConfessionExperience({ mode }) {
                 {CATEGORY_OPTIONS.map((category) => (
                   <button
                     key={category.label}
-                    className={
-                      selectedCategory === category.value ? "topic-chip active" : "topic-chip"
-                    }
+                    className={selectedCategory === category.value ? "topic-chip active" : "topic-chip"}
                     onClick={() => refreshCategory(category.value)}
                   >
                     {category.label}
@@ -491,13 +520,17 @@ export function ConfessionExperience({ mode }) {
               <span>Top tags</span>
               <strong>{topTags.length ? topTags[0].tag : "waiting"}</strong>
               <p className="insight-copy">
-                {topTags.length ? `${topTags[0].count} active mentions in the current result set.` : "Search or browse to surface live patterns."}
+                {topTags.length
+                  ? `${topTags[0].count} active mentions in the current result set.`
+                  : "Search or browse to surface live patterns."}
               </p>
             </div>
             <div className="metric-card">
               <span>Saved posts</span>
               <strong>{formatCompactNumber(bookmarkedPosts.length)}</strong>
-              <p className="insight-copy">Keep meaningful confessions close without losing anonymity.</p>
+              <p className="insight-copy">
+                Keep meaningful confessions close without losing anonymity.
+              </p>
             </div>
             <div className="metric-card">
               <span>Search volume</span>
@@ -526,44 +559,44 @@ export function ConfessionExperience({ mode }) {
             visiblePosts.map((post) => (
               <article key={post._id} className="post-card">
                 <div className="swipe-hint">
-                <div className="post-meta">
-                  <span className="post-type">{post.type || "deep"}</span>
-                  <span>{post.timeAgo || "Just now"}</span>
-                </div>
+                  <div className="post-meta">
+                    <span className="post-type">{post.type || "deep"}</span>
+                    <span>{post.timeAgo || "Just now"}</span>
+                  </div>
 
-                <p className={post.blurred && settings.revealEnabled ? "post-text blurred" : "post-text"}>
-                  {post.text}
-                </p>
+                  <p className={post.blurred && settings.revealEnabled ? "post-text blurred" : "post-text"}>
+                    {post.text}
+                  </p>
 
-                <div className="post-stats">
-                  <button className="stat-button" onClick={() => handleVote(post._id, "like")}>
-                    Appreciate {formatCompactNumber(post.likes || 0)}
-                  </button>
-                  <button className="stat-button" onClick={() => handleVote(post._id, "dislike")}>
-                    Skip {formatCompactNumber(post.dislikes || 0)}
-                  </button>
-                  <button className="stat-button accent" onClick={() => setActivePostId(post._id)}>
-                    Discuss {formatCompactNumber(post.comments?.length || 0)}
-                  </button>
-                </div>
-
-                <div className="post-actions">
-                  <button className="mini-action" onClick={() => handleBookmark(post._id)}>
-                    {bookmarks.includes(post._id) ? "Saved" : "Save"}
-                  </button>
-                  {EMOTION_REACTIONS.map((reaction) => (
-                    <button
-                      key={reaction.value}
-                      className="mini-action"
-                      onClick={() => handleReaction(post._id, reaction.value)}
-                    >
-                      {reaction.label} {formatCompactNumber(post.reactions?.[reaction.value] || 0)}
+                  <div className="post-stats">
+                    <button className="stat-button" onClick={() => handleVote(post._id, "like")}>
+                      Appreciate {formatCompactNumber(post.likes || 0)}
                     </button>
-                  ))}
-                  <button className="mini-action subtle" onClick={() => handleReport(post._id)}>
-                    Report
-                  </button>
-                </div>
+                    <button className="stat-button" onClick={() => handleVote(post._id, "dislike")}>
+                      Skip {formatCompactNumber(post.dislikes || 0)}
+                    </button>
+                    <button className="stat-button accent" onClick={() => setActivePostId(post._id)}>
+                      Discuss {formatCompactNumber(post.comments?.length || 0)}
+                    </button>
+                  </div>
+
+                  <div className="post-actions">
+                    <button className="mini-action" onClick={() => handleBookmark(post._id)}>
+                      {bookmarks.includes(post._id) ? "Saved" : "Save"}
+                    </button>
+                    {EMOTION_REACTIONS.map((reaction) => (
+                      <button
+                        key={reaction.value}
+                        className="mini-action"
+                        onClick={() => handleReaction(post._id, reaction.value)}
+                      >
+                        {reaction.label} {formatCompactNumber(post.reactions?.[reaction.value] || 0)}
+                      </button>
+                    ))}
+                    <button className="mini-action subtle" onClick={() => handleReport(post._id)}>
+                      Report
+                    </button>
+                  </div>
                 </div>
               </article>
             ))
@@ -603,11 +636,11 @@ export function ConfessionExperience({ mode }) {
         ) : null}
       </main>
 
-      <button className="floating-compose" onClick={() => setIsComposeOpen(true)}>
+      <button className={navHidden ? "floating-compose hidden" : "floating-compose"} onClick={() => setIsComposeOpen(true)}>
         +
       </button>
 
-      <nav className="bottom-nav">
+      <nav className={navHidden ? "bottom-nav hidden" : "bottom-nav"}>
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}
@@ -655,99 +688,6 @@ export function ConfessionExperience({ mode }) {
                 onClick={submitConfession}
               >
                 Post anonymously
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {isSettingsOpen ? (
-        <div className="overlay" onClick={() => setIsSettingsOpen(false)}>
-          <section className="drawer-card settings-card" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <p className="eyebrow">Settings</p>
-                <h2>Customize the whole interface</h2>
-              </div>
-              <button className="close-button" onClick={() => setIsSettingsOpen(false)}>
-                Close
-              </button>
-            </div>
-
-            <div className="settings-group">
-              <span className="settings-label">Accent color</span>
-              <div className="settings-row">
-                {ACCENT_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    className={uiSettings.accent === preset ? "topic-chip active" : "topic-chip"}
-                    onClick={() => updateUiSettings({ accent: preset })}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="settings-group">
-              <span className="settings-label">Surface color</span>
-              <div className="settings-row">
-                {SURFACE_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    className={uiSettings.surface === preset ? "topic-chip active" : "topic-chip"}
-                    onClick={() => updateUiSettings({ surface: preset })}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="settings-group">
-              <span className="settings-label">Font family</span>
-              <div className="settings-row">
-                {FONT_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    className={uiSettings.font === preset ? "topic-chip active" : "topic-chip"}
-                    onClick={() => updateUiSettings({ font: preset })}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <label className="slider-row">
-              <span className="settings-label">Text size</span>
-              <input
-                type="range"
-                min="0.9"
-                max="1.2"
-                step="0.05"
-                value={uiSettings.textScale}
-                onChange={(event) => updateUiSettings({ textScale: Number(event.target.value) })}
-              />
-              <strong>{uiSettings.textScale.toFixed(2)}x</strong>
-            </label>
-
-            <label className="slider-row">
-              <span className="settings-label">UI roundness</span>
-              <input
-                type="range"
-                min="0.8"
-                max="1.3"
-                step="0.05"
-                value={uiSettings.radius}
-                onChange={(event) => updateUiSettings({ radius: Number(event.target.value) })}
-              />
-              <strong>{uiSettings.radius.toFixed(2)}x</strong>
-            </label>
-
-            <div className="settings-actions">
-              <button className="secondary-button" onClick={() => updateUiSettings(DEFAULT_UI_SETTINGS)}>
-                Reset visuals
               </button>
             </div>
           </section>
@@ -866,38 +806,20 @@ function applyOptimisticVote(post, postId, previousVote, nextVote) {
   return { ...post, likes, dislikes };
 }
 
-function applyUiSettings(settings) {
-  if (typeof document === "undefined") {
-    return;
+function GearIcon({ icon }) {
+  if (icon === "theme") {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 3v2.5M12 18.5V21M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M3 12h2.5M18.5 12H21M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
+        <circle cx="12" cy="12" r="4.2" />
+      </svg>
+    );
   }
 
-  const root = document.documentElement;
-  const accentMap = {
-    blue: ["#0b57d0", "#1a73e8", "rgba(11, 87, 208, 0.1)"],
-    green: ["#137333", "#1e8e3e", "rgba(19, 115, 51, 0.1)"],
-    rose: ["#b3265d", "#d43f7a", "rgba(179, 38, 93, 0.12)"],
-    orange: ["#c26401", "#e37400", "rgba(194, 100, 1, 0.12)"]
-  };
-  const surfaceMap = {
-    mist: ["#f7f8fc", "#eef3fd", "#ffffff", "#f8faff", "#edf2fd"],
-    paper: ["#faf7f2", "#f3ede3", "#ffffff", "#fffaf2", "#f6efe2"],
-    night: ["#12151d", "#1b2030", "#1b1f27", "#20242d", "#252b36"],
-    mint: ["#f3fbf8", "#e3f4ed", "#ffffff", "#f4fcf8", "#e5f6ef"]
-  };
-
-  const [accent, accentStrong, accentSoft] = accentMap[settings.accent] || accentMap.blue;
-  const [bg, bgSecondary, surface1, surface2, surface3] = surfaceMap[settings.surface] || surfaceMap.mist;
-
-  root.style.setProperty("--accent", accent);
-  root.style.setProperty("--accent-strong", accentStrong);
-  root.style.setProperty("--accent-soft", accentSoft);
-  root.style.setProperty("--bg", bg);
-  root.style.setProperty("--bg-secondary", bgSecondary);
-  root.style.setProperty("--surface-1", surface1);
-  root.style.setProperty("--surface-2", surface2);
-  root.style.setProperty("--surface-3", surface3);
-  root.style.setProperty("--card-strong", surface1);
-  root.style.setProperty("--text-scale", String(settings.textScale));
-  root.style.setProperty("--radius-scale", String(settings.radius));
-  root.dataset.font = settings.font;
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 0 0 0-7Z" />
+      <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1 1 0 0 1 0 1.4l-1.2 1.2a1 1 0 0 1-1.4 0l-.1-.1a1 1 0 0 0-1.1-.2a1 1 0 0 0-.6.9V20a1 1 0 0 1-1 1h-1.8a1 1 0 0 1-1-1v-.2a1 1 0 0 0-.6-.9a1 1 0 0 0-1.1.2l-.1.1a1 1 0 0 1-1.4 0l-1.2-1.2a1 1 0 0 1 0-1.4l.1-.1a1 1 0 0 0 .2-1.1a1 1 0 0 0-.9-.6H4a1 1 0 0 1-1-1v-1.8a1 1 0 0 1 1-1h.2a1 1 0 0 0 .9-.6a1 1 0 0 0-.2-1.1l-.1-.1a1 1 0 0 1 0-1.4l1.2-1.2a1 1 0 0 1 1.4 0l.1.1a1 1 0 0 0 1.1.2a1 1 0 0 0 .6-.9V4a1 1 0 0 1 1-1h1.8a1 1 0 0 1 1 1v.2a1 1 0 0 0 .6.9a1 1 0 0 0 1.1-.2l.1-.1a1 1 0 0 1 1.4 0l1.2 1.2a1 1 0 0 1 0 1.4l-.1.1a1 1 0 0 0-.2 1.1a1 1 0 0 0 .9.6H20a1 1 0 0 1 1 1v1.8a1 1 0 0 1-1 1h-.2a1 1 0 0 0-.9.6Z" />
+    </svg>
+  );
 }
