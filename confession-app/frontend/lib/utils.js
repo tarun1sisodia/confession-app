@@ -23,9 +23,9 @@ export const TRENDING_TOPICS = [
 ];
 
 export const EMOTION_REACTIONS = [
-  { label: "Relatable", value: "relatable" },
-  { label: "Funny", value: "funny" },
-  { label: "Sad", value: "sad" }
+  { label: "Support", value: "relatable" },
+  { label: "Laugh", value: "funny" },
+  { label: "Feel it", value: "sad" }
 ];
 
 export function classifyConfession(text) {
@@ -47,7 +47,14 @@ export function shouldBlur(text) {
 }
 
 export function getScore(post) {
-  return (post.likes || 0) + (post.comments?.length || 0) * 2 - (post.dislikes || 0);
+  const likes = post.likes || 0;
+  const dislikes = post.dislikes || 0;
+  const comments = post.comments?.length || 0;
+  const reactions = Object.values(post.reactions || {}).reduce((sum, value) => sum + (value || 0), 0);
+  const ageHours = Math.max(1, (Date.now() - new Date(post.createdAt || Date.now()).getTime()) / 36e5);
+  const freshnessBoost = ageHours < 12 ? 12 - ageHours : 0;
+
+  return likes * 1.8 + comments * 3 + reactions * 1.4 + freshnessBoost - dislikes * 1.5;
 }
 
 export function formatCompactNumber(value) {
@@ -71,4 +78,35 @@ export function getTopTags(posts) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 4)
     .map(([tag, count]) => ({ tag, count }));
+}
+
+export function getPostSignal(post) {
+  const reactions = post.reactions || {};
+  const comments = post.comments?.length || 0;
+  const likes = post.likes || 0;
+  const support = reactions.relatable || 0;
+  const laughs = reactions.funny || 0;
+  const empathy = reactions.sad || 0;
+
+  if (comments >= 8) {
+    return "Discussed";
+  }
+
+  if (support + likes >= 12) {
+    return "Supported";
+  }
+
+  if (laughs >= 6) {
+    return "Light";
+  }
+
+  if (empathy >= 5) {
+    return "Heavy";
+  }
+
+  if (getScore(post) >= 18) {
+    return "Rising";
+  }
+
+  return "Fresh";
 }

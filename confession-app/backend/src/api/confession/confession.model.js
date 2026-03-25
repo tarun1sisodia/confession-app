@@ -13,6 +13,11 @@ const reactionSchema = new mongoose.Schema({
 }, { _id: false });
 
 const confessionSchema = new mongoose.Schema({
+  imageUrl: {
+    type: String,
+    trim: true,
+    maxlength: [2000, 'Image URL cannot be more than 2000 characters']
+  },
   text: {
     type: String,
     required: [true, 'Confession text is required'],
@@ -52,6 +57,11 @@ const confessionSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+confessionSchema.index({ createdAt: -1 });
+confessionSchema.index({ updatedAt: -1 });
+confessionSchema.index({ type: 1, createdAt: -1 });
+confessionSchema.index({ isReported: 1, reports: -1 });
 
 const Confession = mongoose.model('Confession', confessionSchema);
 export default Confession;

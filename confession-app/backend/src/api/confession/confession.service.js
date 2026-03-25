@@ -25,24 +25,29 @@ const formatConfession = (doc) => {
 };
 
 export const getAllConfessions = async (typeFilter, page = 1, limit = 10) => {
+  const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const safeLimit = Math.min(20, Math.max(1, Number.parseInt(limit, 10) || 10));
   const query = typeFilter ? { type: typeFilter } : {};
-  const skip = (page - 1) * limit;
+  const skip = (safePage - 1) * safeLimit;
   const confessions = await Confession.find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(limit);
+    .limit(safeLimit);
   return confessions.map(formatConfession);
 };
 
 export const getTrendingConfessions = async () => {
-  // Score = Likes + (Comments * 2) - Dislikes
+  // Score = Likes + Reactions + (Comments * 3) - Dislikes
   const confessions = await Confession.aggregate([
     {
       $addFields: {
         score: {
           $add: [
             { $ifNull: ["$likes", 0] },
-            { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 2] },
+            { $ifNull: ["$reactions.funny", 0] },
+            { $ifNull: ["$reactions.sad", 0] },
+            { $ifNull: ["$reactions.relatable", 0] },
+            { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 3] },
             { $multiply: [{ $ifNull: ["$dislikes", 0] }, -1] }
           ]
         }
@@ -57,18 +62,31 @@ export const getTrendingConfessions = async () => {
 };
 
 export const createConfession = async (data) => {
-  if (!data.text || data.text.trim() === '') {
+  const text = data.text?.trim();
+
+  if (!text) {
     throw new AppError('Confession text cannot be empty', 400);
   }
-  if (data.text.length > 1000) {
+  if (text.length > 1000) {
     throw new AppError('Confession is too long (max 1000 chars)', 400);
   }
-  if (containsBadWords(data.text)) {
+  if (containsBadWords(text)) {
     throw new AppError('Inappropriate content detected. Not allowed.', 400);
+  }
+  if (data.imageUrl) {
+    try {
+      const parsed = new URL(data.imageUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Invalid protocol');
+      }
+    } catch {
+      throw new AppError('Image URL must be a valid http or https address', 400);
+    }
   }
   
   const payload = { 
-    text: data.text,
+    imageUrl: data.imageUrl?.trim() || '',
+    text,
     type: data.type || 'deep',
     blurred: !!data.blurred
   };
@@ -127,17 +145,22 @@ export const reportConfession = async (id) => {
 };
 
 export const addComment = async (confessionId, text) => {
-  if (!text || text.trim() === '') {
+  const normalizedText = text?.trim();
+
+  if (!normalizedText) {
     throw new AppError('Comment text cannot be empty', 400);
   }
-  if (containsBadWords(text)) {
+  if (normalizedText.length > 500) {
+    throw new AppError('Comment is too long (max 500 chars)', 400);
+  }
+  if (containsBadWords(normalizedText)) {
     throw new AppError('Inappropriate content detected in comment', 400);
   }
 
   const confession = await Confession.findById(confessionId);
   if (!confession) throw new AppError('Confession not found', 404);
 
-  confession.comments.unshift({ text });
+  confession.comments.unshift({ text: normalizedText });
   await confession.save();
   return formatConfession(confession);
 };
@@ -177,8 +200,12 @@ export const voteComment = async (confessionId, commentId, isLike, deviceId) => 
 };
 
 export const searchConfessions = async (query) => {
-  if (!query) return [];
-  const confessions = await Confession.find({ text: { $regex: query, $options: 'i' } }).sort({ createdAt: -1 }).limit(50);
+  const normalizedQuery = query?.trim();
+  if (!normalizedQuery || normalizedQuery.length < 2) return [];
+  const safeQuery = normalizedQuery.slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const confessions = await Confession.find({ text: { $regex: safeQuery, $options: 'i' } })
+    .sort({ createdAt: -1 })
+    .limit(50);
   return confessions.map(formatConfession);
 };
 

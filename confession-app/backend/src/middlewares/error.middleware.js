@@ -12,18 +12,20 @@ export default (err, req, res, next) => {
       message: err.message,
       stack: err.stack
     });
-  } else {
-    if (err.isOperational) {
-      res.status(err.statusCode).json({
-        status: err.status,
-        message: err.message
-      });
-    } else {
-      logger.error('ERROR 💥', err);
-      res.status(500).json({
-        status: 'error',
-        message: 'Something went very wrong!'
-      });
-    }
+    return;
   }
+
+  if (err.isOperational) {
+    res.status(err.statusCode).json({
+      status: err.status,
+      message: err.message
+    });
+    return;
+  }
+
+  logger.error('ERROR', err);
+  res.status(500).json({
+    status: 'error',
+    message: 'Something went very wrong!'
+  });
 };

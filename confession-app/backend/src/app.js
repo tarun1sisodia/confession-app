@@ -6,6 +6,7 @@ import errorMiddleware from './middlewares/error.middleware.js';
 import AppError from './utils/AppError.js';
 
 const app = express();
+app.set('trust proxy', 1);
 
 const allowedOrigins = (process.env.FRONTEND_URL || "*")
   .split(",")
@@ -13,6 +14,13 @@ const allowedOrigins = (process.env.FRONTEND_URL || "*")
   .filter(Boolean);
 
 // Global Middlewares
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
@@ -26,6 +34,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: '10kb' })); 
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 // Health Check
 app.get('/health', (req, res) => {

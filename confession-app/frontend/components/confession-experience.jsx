@@ -27,19 +27,19 @@ import {
 import {
   CATEGORY_OPTIONS,
   EMOTION_REACTIONS,
-  QUOTES,
   TRENDING_TOPICS,
   classifyConfession,
   formatCompactNumber,
+  getPostSignal,
   getScore,
   getTopTags,
   shouldBlur
 } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Home" },
-  { href: "/explore", label: "Explore" },
-  { href: "/hearts", label: "Hearts" }
+  { href: "/", label: "Home", icon: "home" },
+  { href: "/explore", label: "Explore", icon: "search" },
+  { href: "/hearts", label: "Hearts", icon: "heart" }
 ];
 
 const REACTION_OPTIONS = [
@@ -54,8 +54,6 @@ export function ConfessionExperience({ mode }) {
   const [settings, setSettings] = useState({ theme: "system", revealEnabled: true });
   const [uiSettings, setUiSettings] = useState(getUiSettings());
   const [postVotes, setPostVotes] = useState({});
-  const [quoteIndex, setQuoteIndex] = useState(0);
-  const [showExpandedHero, setShowExpandedHero] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(mode === "home" ? "" : "trending");
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(1);
@@ -64,6 +62,7 @@ export function ConfessionExperience({ mode }) {
   const [error, setError] = useState("");
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [composeText, setComposeText] = useState("");
+  const [composeImageUrl, setComposeImageUrl] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
   const [activePostId, setActivePostId] = useState("");
   const [commentSort, setCommentSort] = useState("top");
@@ -145,7 +144,6 @@ export function ConfessionExperience({ mode }) {
     setDeviceId(nextDeviceId);
     setBookmarks(getBookmarks());
     setUiSettings(nextUi);
-    setShowExpandedHero(window.localStorage.getItem("confesslyHeroSeen") !== "true");
 
     getSettings(nextDeviceId)
       .then((data) => {
@@ -180,29 +178,8 @@ export function ConfessionExperience({ mode }) {
   }, []);
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      setQuoteIndex((current) => (current + 1) % QUOTES.length);
-    }, 4500);
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     applyUiSettings(uiSettings, resolveTheme(settings.theme));
   }, [settings.theme, uiSettings]);
-
-  useEffect(() => {
-    if (showExpandedHero) {
-      const timer = window.setTimeout(() => {
-        setShowExpandedHero(false);
-        window.localStorage.setItem("confesslyHeroSeen", "true");
-      }, 2400);
-
-      return () => window.clearTimeout(timer);
-    }
-
-    return undefined;
-  }, [showExpandedHero]);
 
   useEffect(() => {
     if (!deviceId) {
@@ -265,12 +242,14 @@ export function ConfessionExperience({ mode }) {
       .finally(() => setLoading(false));
   }, [deferredSearch, deviceId, mode, page, selectedCategory]);
 
-  const heroText =
+  const pageTitle =
+    mode === "explore" ? "Explore" : mode === "hearts" ? "Hearts" : "Feed";
+  const pageCopy =
     mode === "explore"
-      ? "Search the confessions people cannot say out loud."
+      ? "Find active topics, search confessions, and track what people are talking about."
       : mode === "hearts"
-        ? "Track the confessions you posted and how people responded."
-        : "A fast, anonymous social feed for thoughts that need room to breathe.";
+        ? "See your own confessions, saved posts, and the conversations around them."
+        : "Fresh anonymous confessions, with reactions and discussion flowing in real time.";
 
   async function persistSettings(nextSettings) {
     setSettings(nextSettings);
@@ -350,6 +329,7 @@ export function ConfessionExperience({ mode }) {
     }
 
     const payload = {
+      imageUrl: composeImageUrl.trim(),
       text: composeText.trim(),
       type: classifyConfession(composeText),
       blurred: shouldBlur(composeText)
@@ -359,6 +339,7 @@ export function ConfessionExperience({ mode }) {
       const created = await addPost(payload);
       saveMyPost(created._id);
       setComposeText("");
+      setComposeImageUrl("");
       setIsComposeOpen(false);
       setSelectedCategory("");
       setPage(1);
@@ -430,50 +411,33 @@ export function ConfessionExperience({ mode }) {
       <div className="ambient ambient-right" />
 
       <main className="frame">
-        <section className={showExpandedHero ? "hero-card" : "hero-card hero-card-compact"}>
-          <div className="hero-header">
-            <div className="hero-topline">
-              <span className="brand-mark">C</span>
-              <div>
-                <p className="eyebrow">Confessly</p>
-                <h1>Anonymous honesty, redesigned for speed.</h1>
-              </div>
-            </div>
-            <div className="hero-quick-actions">
-              <button className="icon-button" onClick={cycleTheme} aria-label="Toggle theme">
-                <GearIcon icon="theme" />
-              </button>
-              <Link href="/settings" className="icon-button" aria-label="Open settings">
-                <GearIcon icon="settings" />
-              </Link>
-            </div>
+        <header className="topbar">
+          <div className="topbar-brand">
+            <span className="brand-mark">C</span>
           </div>
-
-          <p className="hero-copy">{heroText}</p>
-
-          <div className="hero-actions">
-            <button className="primary-button" onClick={() => setIsComposeOpen(true)}>
-              Write a confession
+          <div className="hero-quick-actions">
+            <button className="icon-button" onClick={toggleReveal} aria-label="Toggle blur">
+              <ActionIcon type={settings.revealEnabled ? "blur" : "eye"} />
             </button>
-            <button className="secondary-button" onClick={toggleReveal}>
-              Blur {settings.revealEnabled ? "on" : "off"}
+            <button className="icon-button" onClick={cycleTheme} aria-label="Toggle theme">
+              <GearIcon icon="theme" />
             </button>
-            <Link href="/settings" className="ghost-button text-link-button">
-              Personalize
+            <Link href="/settings" className="icon-button" aria-label="Open settings">
+              <GearIcon icon="settings" />
             </Link>
           </div>
+        </header>
 
-          {showExpandedHero ? (
-            <>
-              <div className="metrics-grid">
-                <StatCard label="Confessions" value={formatCompactNumber(metrics.confessions)} />
-                <StatCard label="Replies" value={formatCompactNumber(metrics.replies)} />
-                <StatCard label="Pulse" value={formatCompactNumber(metrics.pulse)} />
-              </div>
-
-              <p className="quote-line">{QUOTES[quoteIndex]}</p>
-            </>
-          ) : null}
+        <section className="page-intro">
+          <div>
+            <p className="eyebrow">{pageTitle}</p>
+            <h2>{pageCopy}</h2>
+          </div>
+          <div className="page-intro-actions">
+            <StatCard label="Confessions" value={formatCompactNumber(metrics.confessions)} />
+            <StatCard label="Replies" value={formatCompactNumber(metrics.replies)} />
+            <StatCard label="Pulse" value={formatCompactNumber(metrics.pulse)} />
+          </div>
         </section>
 
         <nav className="tab-nav desktop-nav">
@@ -579,9 +543,15 @@ export function ConfessionExperience({ mode }) {
               <article key={post._id} className="post-card">
                 <div className="swipe-hint">
                   <div className="post-meta">
-                    <span className="post-type">{post.type || "deep"}</span>
+                    <span className="post-type">{getPostSignal(post)}</span>
                     <span>{post.timeAgo || "Just now"}</span>
                   </div>
+
+                  {post.imageUrl ? (
+                    <div className="post-media-shell">
+                      <img src={post.imageUrl} alt="" className="post-media" loading="lazy" />
+                    </div>
+                  ) : null}
 
                   <p className={post.blurred && settings.revealEnabled ? "post-text blurred" : "post-text"}>
                     {post.text}
@@ -660,10 +630,6 @@ export function ConfessionExperience({ mode }) {
         ) : null}
       </main>
 
-      <button className={navHidden ? "floating-compose hidden" : "floating-compose"} onClick={() => setIsComposeOpen(true)}>
-        +
-      </button>
-
       <nav className={navHidden ? "bottom-nav hidden" : "bottom-nav"}>
         {NAV_ITEMS.slice(0, 2).map((item) => (
           <Link
@@ -671,11 +637,13 @@ export function ConfessionExperience({ mode }) {
             href={item.href}
             className={modePath(mode) === item.href ? "bottom-link active" : "bottom-link"}
           >
+            <ActionIcon type={item.icon} />
             <span>{item.label}</span>
           </Link>
         ))}
         <button className="bottom-compose" aria-label="Create confession" onClick={() => setIsComposeOpen(true)}>
-          +
+          <ActionIcon type="compose" />
+          <span>Post</span>
         </button>
         {NAV_ITEMS.slice(2).map((item) => (
           <Link
@@ -683,6 +651,7 @@ export function ConfessionExperience({ mode }) {
             href={item.href}
             className={modePath(mode) === item.href ? "bottom-link active" : "bottom-link"}
           >
+            <ActionIcon type={item.icon} />
             <span>{item.label}</span>
           </Link>
         ))}
@@ -715,6 +684,22 @@ export function ConfessionExperience({ mode }) {
               onChange={(event) => setComposeText(event.target.value)}
               placeholder="No name. No profile. Just the truth."
             />
+
+            <label className="compose-url-shell">
+              <span className="settings-label">Image URL (optional)</span>
+              <input
+                type="url"
+                value={composeImageUrl}
+                onChange={(event) => setComposeImageUrl(event.target.value)}
+                placeholder="https://example.com/image.jpg"
+              />
+            </label>
+
+            {composeImageUrl.trim() ? (
+              <div className="compose-preview-shell">
+                <img src={composeImageUrl} alt="" className="compose-preview-image" />
+              </div>
+            ) : null}
 
             <div className="compose-footer">
               <span>{composeText.trim().length}/1000</span>
@@ -863,6 +848,18 @@ function GearIcon({ icon }) {
 function ActionIcon({ type }) {
   const common = { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2 };
 
+  if (type === "home") {
+    return <svg {...common}><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.8V21h14V9.8" /></svg>;
+  }
+  if (type === "search") {
+    return <svg {...common}><circle cx="11" cy="11" r="6.5" /><path d="m20 20-3.5-3.5" /></svg>;
+  }
+  if (type === "heart") {
+    return <svg {...common}><path d="M12 20s-7-4.5-9.2-8.7C1 7.6 3.3 4 7.1 4c2 0 3.3 1 4.9 2.9C13.6 5 14.9 4 16.9 4c3.8 0 6.1 3.6 4.3 7.3C19 15.5 12 20 12 20Z" /></svg>;
+  }
+  if (type === "compose") {
+    return <svg {...common}><path d="M12 5v14M5 12h14" /></svg>;
+  }
   if (type === "like") {
     return <svg {...common}><path d="M7 10v10M3 11h4v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1Z" /><path d="M7 20h7.2a2 2 0 0 0 1.9-1.4l1.7-5.6A2 2 0 0 0 16 10h-3V6.8A1.8 1.8 0 0 0 11.2 5L7 10Z" /></svg>;
   }
@@ -871,6 +868,12 @@ function ActionIcon({ type }) {
   }
   if (type === "comment") {
     return <svg {...common}><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" /></svg>;
+  }
+  if (type === "blur") {
+    return <svg {...common}><path d="M2 12s3.5-6 10-6s10 6 10 6-3.5 6-10 6-10-6-10-6Z" /><path d="M12 9.5A2.5 2.5 0 1 0 12 14.5A2.5 2.5 0 1 0 12 9.5Z" /><path d="M4 20 20 4" /></svg>;
+  }
+  if (type === "eye") {
+    return <svg {...common}><path d="M2 12s3.5-6 10-6s10 6 10 6-3.5 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.5" /></svg>;
   }
   if (type === "save" || type === "saved") {
     return <svg {...common} fill={type === "saved" ? "currentColor" : "none"}><path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1Z" /></svg>;
