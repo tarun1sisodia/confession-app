@@ -10,7 +10,9 @@
     "build:frontend": "npm run build --prefix confession-app/frontend",
     "android:sync": "npm run android:build --prefix confession-app/frontend",
     "android:open": "npm run cap:open --prefix confession-app/frontend",
-    "android:bundle": "npm run android:bundle --prefix confession-app/frontend"
+    "android:bundle": "npm run android:bundle --prefix confession-app/frontend",
+    "android:version": "npm run android:version --prefix confession-app/frontend",
+    "android:version:show": "npm run android:version:show --prefix confession-app/frontend"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

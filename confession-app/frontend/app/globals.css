@@ -18,6 +18,16 @@
   --ambient-c: rgba(251, 188, 4, 0.12);
   --text-scale: 1;
   --radius-scale: 1;
+  --nav-scale: 0.9;
+  --nav-gap: 0.495rem;
+  --nav-padding: 0.54rem;
+  --nav-radius: 1.26rem;
+  --nav-link-radius: 0.855rem;
+  --nav-compose-radius: 0.9rem;
+  --nav-link-y: 0.648rem;
+  --nav-link-x: 0.54rem;
+  --nav-min-height: 2.835rem;
+  --nav-font-size-mobile: 0.648rem;
 }
 
 :root[data-theme="dark"] {
@@ -657,6 +667,13 @@ h2 {
   background: var(--surface-2);
 }
 
+.post-media-button {
+  padding: 0;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+}
+
 .post-media {
   display: block;
   width: 100%;
@@ -709,6 +726,13 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+}
+
+.stat-button.active,
+.mini-action.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #ffffff;
 }
 
 .mini-action,
@@ -773,6 +797,10 @@ h2 {
   z-index: 20;
 }
 
+.media-overlay {
+  background: rgba(9, 10, 14, 0.84);
+}
+
 .modal-card,
 .drawer-card {
   width: min(760px, 100%);
@@ -781,10 +809,42 @@ h2 {
   padding: 1.4rem;
 }
 
+.modal-card {
+  max-height: min(86vh, 900px);
+  overflow: auto;
+}
+
 .drawer-card {
   max-height: min(86vh, 900px);
   display: grid;
   gap: 1rem;
+}
+
+.image-viewer-card {
+  width: min(980px, 100%);
+  max-height: min(92vh, 1200px);
+  display: grid;
+  gap: 1rem;
+  padding: 1.2rem;
+  border-radius: calc(2rem * var(--radius-scale));
+  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.image-viewer-shell {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: calc(1.5rem * var(--radius-scale));
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.image-viewer-media {
+  display: block;
+  width: 100%;
+  max-height: min(78vh, 960px);
+  object-fit: contain;
 }
 
 .reaction-row {
@@ -794,7 +854,7 @@ h2 {
 
 .compose-input {
   width: 100%;
-  min-height: 16rem;
+  min-height: clamp(10rem, 28vh, 16rem);
   margin-top: 1rem;
   padding: 1rem;
   resize: vertical;
@@ -807,6 +867,12 @@ h2 {
   margin-top: 1rem;
 }
 
+.compose-upload-shell {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
 .compose-url-shell input {
   min-height: 3.5rem;
   padding: 0 1rem;
@@ -816,6 +882,15 @@ h2 {
   color: var(--text);
 }
 
+.compose-upload-shell input {
+  width: 100%;
+}
+
+.upload-help {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .compose-preview-shell {
   margin-top: 1rem;
 }
@@ -823,14 +898,23 @@ h2 {
 .compose-preview-image {
   display: block;
   width: 100%;
-  max-height: 18rem;
+  max-height: min(32vh, 12rem);
   object-fit: cover;
 }
 
 .compose-footer {
   margin-top: 1rem;
+  position: sticky;
+  bottom: 0;
   justify-content: space-between;
   flex-wrap: wrap;
+  padding-top: 1rem;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card-strong) 0%, transparent),
+      var(--card-strong) 26%
+    );
 }
 
 .comment-list {
@@ -891,11 +975,11 @@ h2 {
   width: min(720px, calc(100vw - 1rem));
   display: flex;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  gap: var(--nav-gap);
+  padding: var(--nav-padding);
+  padding-bottom: calc(var(--nav-padding) + env(safe-area-inset-bottom));
   border: 1px solid var(--line);
-  border-radius: calc(1.8rem * var(--radius-scale));
+  border-radius: calc(var(--nav-radius) * var(--radius-scale));
   background: color-mix(in srgb, var(--surface-1) 88%, transparent);
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
@@ -906,13 +990,13 @@ h2 {
 
 .bottom-compose {
   flex: 1;
-  min-height: 3.55rem;
+  min-height: var(--nav-min-height);
   border: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
-  border-radius: calc(1.2rem * var(--radius-scale));
+  gap: var(--nav-gap);
+  border-radius: calc(var(--nav-compose-radius) * var(--radius-scale));
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: #ffffff;
   box-shadow: var(--shadow);
@@ -929,9 +1013,9 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
-  border-radius: calc(1.2rem * var(--radius-scale));
-  padding: 0.85rem 0.7rem;
+  gap: var(--nav-gap);
+  border-radius: calc(var(--nav-link-radius) * var(--radius-scale));
+  padding: var(--nav-link-y) var(--nav-link-x);
 }
 
 .bottom-nav.hidden {
@@ -1201,14 +1285,14 @@ body,
   .bottom-link {
     flex-direction: column;
     gap: 0.25rem;
-    font-size: 0.76rem;
+    font-size: var(--nav-font-size-mobile);
   }
 
   .bottom-compose {
     flex-direction: column;
-    min-height: 3.4rem;
+    min-height: var(--nav-min-height);
     gap: 0.25rem;
-    font-size: 0.76rem;
+    font-size: var(--nav-font-size-mobile);
   }
 }
 

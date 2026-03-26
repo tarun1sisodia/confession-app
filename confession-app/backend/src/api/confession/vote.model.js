@@ -16,12 +16,17 @@ const voteSchema = new mongoose.Schema({
   },
   voteType: {
     type: String,
-    enum: ['like', 'dislike'],
+    enum: ['like', 'dislike', 'reaction'],
     required: true
+  },
+  reactionValue: {
+    type: String,
+    required: false // Only for voteType === 'reaction'
   }
 }, { timestamps: true });
 
-// Unique vote per device per (post or comment)
+// Unique vote per device per (post or comment). 
+// For posts (commentId null), only one of [like, dislike, reaction] allowed.
 voteSchema.index({ confessionId: 1, commentId: 1, deviceId: 1 }, { unique: true });
 
 const Vote = mongoose.model('Vote', voteSchema);

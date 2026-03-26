@@ -115,6 +115,17 @@ export function applyUiSettings(settings, resolvedTheme) {
   root.style.setProperty("--muted", toneMap.muted);
   root.style.setProperty("--text-scale", String(settings.textScale));
   root.style.setProperty("--radius-scale", String(settings.radius));
+  const navScale = settings.navScale ?? 0.9;
+  root.style.setProperty("--nav-scale", String(navScale));
+  root.style.setProperty("--nav-gap", `${(0.55 * navScale).toFixed(3)}rem`);
+  root.style.setProperty("--nav-padding", `${(0.6 * navScale).toFixed(3)}rem`);
+  root.style.setProperty("--nav-radius", `${(1.4 * navScale).toFixed(3)}rem`);
+  root.style.setProperty("--nav-link-radius", `${(0.95 * navScale).toFixed(3)}rem`);
+  root.style.setProperty("--nav-compose-radius", `${(1 * navScale).toFixed(3)}rem`);
+  root.style.setProperty("--nav-link-y", `${(0.72 * navScale).toFixed(3)}rem`);
+  root.style.setProperty("--nav-link-x", `${(0.6 * navScale).toFixed(3)}rem`);
+  root.style.setProperty("--nav-min-height", `${(3.15 * navScale).toFixed(3)}rem`);
+  root.style.setProperty("--nav-font-size-mobile", `${(0.72 * navScale).toFixed(3)}rem`);
   root.dataset.font = settings.font;
   root.dataset.layout = settings.layoutMode;
 }

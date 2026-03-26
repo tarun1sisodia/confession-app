@@ -9,7 +9,8 @@ export const DEFAULT_UI_SETTINGS = {
   font: "default",
   textTone: "standard",
   textScale: 1,
-  radius: 1
+  radius: 1,
+  navScale: 0.9
 };
 
 export function getDeviceId() {

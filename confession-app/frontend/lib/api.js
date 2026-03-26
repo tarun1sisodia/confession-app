@@ -1,14 +1,21 @@
+import { getDeviceId } from "@/lib/storage";
+
 const API_ROOT = (
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "http://localhost:5000/api"
 ).replace(/\/$/, "");
 
 async function request(path, options = {}) {
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const deviceId = typeof window !== "undefined" ? getDeviceId() : "";
+  const headers = {
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
+    ...(deviceId ? { "x-device-id": deviceId } : {}),
+    ...(options.headers || {})
+  };
+
   const response = await fetch(`${API_ROOT}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
+    headers,
     ...options
   });
 
@@ -56,6 +63,17 @@ export async function addPost(payload) {
     body: JSON.stringify(payload)
   });
   return data.data;
+}
+
+export async function uploadPostImage(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const data = await request("/confessions/upload", {
+    method: "POST",
+    body: formData
+  });
+  return data.data?.imageUrl || "";
 }
 
 export async function reactToPost(postId, type) {

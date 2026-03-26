@@ -76,6 +76,14 @@
                     <div class="flex gap-2 text-gray-300">
                         <button onclick="appendHashtag()" class="p-2 hover:bg-gray-50 rounded-lg transition-colors">#</button>
                         <button onclick="appendHeart()" class="p-2 hover:bg-gray-50 rounded-lg transition-colors">❤</button>
+                        <button onclick="document.getElementById('imageInput').click()" class="p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5l5-5 5 5m-5-5v12"/></svg>
+                        </button>
+                        <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="window.handleImageSelect(event)">
+                    </div>
+                    <div id="imagePreview" class="hidden mb-4 relative">
+                        <img id="previewImg" src="" class="w-full h-32 object-cover rounded-xl border border-gray-100">
+                        <button onclick="window.clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg">✕</button>
                     </div>
                     <button onclick="addPost()" id="postBtn" disabled class="px-8 py-3 bg-blue-600 text-white rounded-2xl font-bold disabled:opacity-30">Post</button>
                 </div>

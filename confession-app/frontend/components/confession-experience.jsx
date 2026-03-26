@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   addComment,
   addPost,
@@ -11,6 +11,7 @@ import {
   reactToPost,
   reportPost,
   searchPosts,
+  uploadPostImage,
   updateSettings,
   voteComment,
   votePost
@@ -53,7 +54,6 @@ export function ConfessionExperience({ mode }) {
   const [deviceId, setDeviceId] = useState("");
   const [settings, setSettings] = useState({ theme: "system", revealEnabled: true });
   const [uiSettings, setUiSettings] = useState(getUiSettings());
-  const [postVotes, setPostVotes] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(mode === "home" ? "" : "trending");
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(1);
@@ -63,14 +63,18 @@ export function ConfessionExperience({ mode }) {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [composeText, setComposeText] = useState("");
   const [composeImageUrl, setComposeImageUrl] = useState("");
+  const [composeImagePreview, setComposeImagePreview] = useState("");
+  const [isImageUploading, setIsImageUploading] = useState(false);
+  const [activeImageUrl, setActiveImageUrl] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
   const [activePostId, setActivePostId] = useState("");
   const [commentSort, setCommentSort] = useState("top");
   const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [navHidden, setNavHidden] = useState(false);
-  const deferredSearch = useDeferredValue(searchInput);
   const [isPending, startTransition] = useTransition();
   const lastScrollRef = useRef(0);
+  const previewUrlRef = useRef("");
 
   const activePost = useMemo(
     () => posts.find((post) => post._id === activePostId) || null,
@@ -182,15 +186,31 @@ export function ConfessionExperience({ mode }) {
   }, [settings.theme, uiSettings]);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 420);
+
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!deviceId) {
       return;
     }
 
     setError("");
 
-    if (mode === "explore" && deferredSearch.trim()) {
+    if (mode === "explore" && debouncedSearch) {
       setLoading(true);
-      searchPosts(deferredSearch)
+      searchPosts(debouncedSearch)
         .then((data) => {
           setPosts(data);
           setIsEnd(true);
@@ -240,7 +260,7 @@ export function ConfessionExperience({ mode }) {
         }
       })
       .finally(() => setLoading(false));
-  }, [deferredSearch, deviceId, mode, page, selectedCategory]);
+  }, [debouncedSearch, deviceId, mode, page, selectedCategory]);
 
   const pageTitle =
     mode === "explore" ? "Explore" : mode === "hearts" ? "Hearts" : "Feed";
@@ -271,23 +291,12 @@ export function ConfessionExperience({ mode }) {
       return;
     }
 
-    const previousVote = postVotes[postId];
-    if (previousVote === voteType) {
-      return;
-    }
-
-    setPostVotes((current) => ({ ...current, [postId]: voteType }));
-    setPosts((current) =>
-      current.map((post) => applyOptimisticVote(post, postId, previousVote, voteType))
-    );
-
     try {
-      await votePost(postId, voteType, deviceId);
-    } catch {
-      setPostVotes((current) => ({ ...current, [postId]: previousVote }));
+      const updatedPost = await votePost(postId, voteType, deviceId);
       setPosts((current) =>
-        current.map((post) => applyOptimisticVote(post, postId, voteType, previousVote))
+        current.map((post) => (post._id === postId ? updatedPost : post))
       );
+    } catch {
       setError("Vote failed. Please try again.");
     }
   }
@@ -324,7 +333,7 @@ export function ConfessionExperience({ mode }) {
   }
 
   async function submitConfession() {
-    if (composeText.trim().length < 8) {
+    if (composeText.trim().length < 8 || isImageUploading) {
       return;
     }
 
@@ -340,6 +349,11 @@ export function ConfessionExperience({ mode }) {
       saveMyPost(created._id);
       setComposeText("");
       setComposeImageUrl("");
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = "";
+      }
+      setComposeImagePreview("");
       setIsComposeOpen(false);
       setSelectedCategory("");
       setPage(1);
@@ -377,18 +391,10 @@ export function ConfessionExperience({ mode }) {
 
   async function handleReaction(postId, reactionType) {
     try {
-      await reactToPost(postId, reactionType);
+      const updatedPost = await reactToPost(postId, reactionType);
       setPosts((current) =>
         current.map((post) =>
-          post._id === postId
-            ? {
-                ...post,
-                reactions: {
-                  ...post.reactions,
-                  [reactionType]: (post.reactions?.[reactionType] || 0) + 1
-                }
-              }
-            : post
+          post._id === postId ? updatedPost : post
         )
       );
     } catch {
@@ -396,9 +402,43 @@ export function ConfessionExperience({ mode }) {
     }
   }
 
+  async function handleImageFileChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+    }
+
+    const localPreviewUrl = URL.createObjectURL(file);
+    previewUrlRef.current = localPreviewUrl;
+    setComposeImagePreview(localPreviewUrl);
+    setIsImageUploading(true);
+    setError("");
+
+    try {
+      const uploadedUrl = await uploadPostImage(file);
+      setComposeImageUrl(uploadedUrl);
+    } catch (uploadError) {
+      setComposeImagePreview("");
+      setComposeImageUrl("");
+      setError(uploadError.message || "Image upload failed.");
+    } finally {
+      setIsImageUploading(false);
+      event.target.value = "";
+    }
+  }
+
   async function handleReport(postId) {
     try {
-      await reportPost(postId);
+      const updatedPost = await reportPost(postId);
+      if (updatedPost?.isReported) {
+        setPosts((current) => current.filter((post) => post._id !== postId));
+      } else if (updatedPost?._id) {
+        setPosts((current) => current.map((post) => (post._id === postId ? updatedPost : post)));
+      }
       setError("Thanks. That confession has been flagged for review.");
     } catch {
       setError("Reporting failed.");
@@ -548,9 +588,14 @@ export function ConfessionExperience({ mode }) {
                   </div>
 
                   {post.imageUrl ? (
-                    <div className="post-media-shell">
+                    <button
+                      type="button"
+                      className="post-media-shell post-media-button"
+                      onClick={() => setActiveImageUrl(post.imageUrl)}
+                      aria-label="Open full image"
+                    >
                       <img src={post.imageUrl} alt="" className="post-media" loading="lazy" />
-                    </div>
+                    </button>
                   ) : null}
 
                   <p className={post.blurred && settings.revealEnabled ? "post-text blurred" : "post-text"}>
@@ -558,11 +603,19 @@ export function ConfessionExperience({ mode }) {
                   </p>
 
                   <div className="post-stats">
-                    <button className="stat-button icon-only" aria-label="Like post" onClick={() => handleVote(post._id, "like")}>
+                    <button
+                      className={post.userVote === "like" ? "stat-button icon-only active" : "stat-button icon-only"}
+                      aria-label="Like post"
+                      onClick={() => handleVote(post._id, "like")}
+                    >
                       <ActionIcon type="like" />
                       <span>{formatCompactNumber(post.likes || 0)}</span>
                     </button>
-                    <button className="stat-button icon-only" aria-label="Dislike post" onClick={() => handleVote(post._id, "dislike")}>
+                    <button
+                      className={post.userVote === "dislike" ? "stat-button icon-only active" : "stat-button icon-only"}
+                      aria-label="Dislike post"
+                      onClick={() => handleVote(post._id, "dislike")}
+                    >
                       <ActionIcon type="dislike" />
                       <span>{formatCompactNumber(post.dislikes || 0)}</span>
                     </button>
@@ -579,7 +632,7 @@ export function ConfessionExperience({ mode }) {
                     {EMOTION_REACTIONS.map((reaction) => (
                       <button
                         key={reaction.value}
-                        className="mini-action icon-only"
+                        className={post.userReaction === reaction.value ? "mini-action icon-only active" : "mini-action icon-only"}
                         aria-label={`React ${reaction.label}`}
                         onClick={() => handleReaction(post._id, reaction.value)}
                       >
@@ -630,7 +683,7 @@ export function ConfessionExperience({ mode }) {
         ) : null}
       </main>
 
-      <nav className={navHidden ? "bottom-nav hidden" : "bottom-nav"}>
+      <nav className={navHidden || isComposeOpen || !!activeImageUrl ? "bottom-nav hidden" : "bottom-nav"}>
         {NAV_ITEMS.slice(0, 2).map((item) => (
           <Link
             key={item.href}
@@ -690,14 +743,33 @@ export function ConfessionExperience({ mode }) {
               <input
                 type="url"
                 value={composeImageUrl}
-                onChange={(event) => setComposeImageUrl(event.target.value)}
+                onChange={(event) => {
+                  if (previewUrlRef.current) {
+                    URL.revokeObjectURL(previewUrlRef.current);
+                    previewUrlRef.current = "";
+                  }
+                  setComposeImagePreview("");
+                  setComposeImageUrl(event.target.value);
+                }}
                 placeholder="https://example.com/image.jpg"
               />
             </label>
 
-            {composeImageUrl.trim() ? (
+            <label className="compose-upload-shell">
+              <span className="settings-label">Upload image</span>
+              <input type="file" accept="image/*" onChange={handleImageFileChange} />
+              <span className="upload-help">
+                {isImageUploading ? "Uploading image..." : "Pick JPG, PNG, WEBP, or GIF up to 5MB."}
+              </span>
+            </label>
+
+            {composeImagePreview || composeImageUrl.trim() ? (
               <div className="compose-preview-shell">
-                <img src={composeImageUrl} alt="" className="compose-preview-image" />
+                <img
+                  src={composeImagePreview || composeImageUrl.trim()}
+                  alt=""
+                  className="compose-preview-image"
+                />
               </div>
             ) : null}
 
@@ -705,11 +777,30 @@ export function ConfessionExperience({ mode }) {
               <span>{composeText.trim().length}/1000</span>
               <button
                 className="primary-button"
-                disabled={composeText.trim().length < 8}
+                disabled={composeText.trim().length < 8 || isImageUploading}
                 onClick={submitConfession}
               >
-                Post anonymously
+                {isImageUploading ? "Uploading..." : "Post anonymously"}
               </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {activeImageUrl ? (
+        <div className="overlay media-overlay" onClick={() => setActiveImageUrl("")}>
+          <section className="image-viewer-card" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Image</p>
+                <h2>Full view</h2>
+              </div>
+              <button className="close-button" onClick={() => setActiveImageUrl("")}>
+                Close
+              </button>
+            </div>
+            <div className="image-viewer-shell">
+              <img src={activeImageUrl} alt="" className="image-viewer-media" />
             </div>
           </section>
         </div>
@@ -808,23 +899,6 @@ function modePath(mode) {
   }
 
   return "/";
-}
-
-function applyOptimisticVote(post, postId, previousVote, nextVote) {
-  if (post._id !== postId) {
-    return post;
-  }
-
-  const likes = Math.max(
-    0,
-    (post.likes || 0) - (previousVote === "like" ? 1 : 0) + (nextVote === "like" ? 1 : 0)
-  );
-  const dislikes = Math.max(
-    0,
-    (post.dislikes || 0) - (previousVote === "dislike" ? 1 : 0) + (nextVote === "dislike" ? 1 : 0)
-  );
-
-  return { ...post, likes, dislikes };
 }
 
 function GearIcon({ icon }) {

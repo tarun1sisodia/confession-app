@@ -6,11 +6,6 @@ const commentSchema = new mongoose.Schema({
   dislikes: { type: Number, default: 0 }
 }, { timestamps: true });
 
-const reactionSchema = new mongoose.Schema({
-  funny: { type: Number, default: 0 },
-  sad: { type: Number, default: 0 },
-  relatable: { type: Number, default: 0 }
-}, { _id: false });
 
 const confessionSchema = new mongoose.Schema({
   imageUrl: {
@@ -42,8 +37,9 @@ const confessionSchema = new mongoose.Schema({
     default: 0
   },
   reactions: {
-    type: reactionSchema,
-    default: () => ({})
+    type: Map,
+    of: Number,
+    default: () => new Map()
   },
   comments: [commentSchema],
   isReported: {

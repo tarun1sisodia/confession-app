@@ -183,6 +183,19 @@ export function SettingsScreen() {
               />
               <strong>{uiSettings.radius.toFixed(2)}x</strong>
             </label>
+
+            <label className="slider-row">
+              <span className="settings-label">Nav size</span>
+              <input
+                type="range"
+                min="0.78"
+                max="1.05"
+                step="0.03"
+                value={uiSettings.navScale ?? 0.9}
+                onChange={(event) => persistUiSettings({ navScale: Number(event.target.value) })}
+              />
+              <strong>{(uiSettings.navScale ?? 0.9).toFixed(2)}x</strong>
+            </label>
           </div>
 
           <section className="preview-card">

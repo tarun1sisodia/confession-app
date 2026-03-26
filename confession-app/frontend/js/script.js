@@ -161,6 +161,46 @@ window.loadMore = function() {
     window.loadFeed(currentCategory, true);
 };
 
+let selectedFile = null;
+
+window.handleImageSelect = function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        selectedFile = file;
+        const reader = new FileReader();
+        reader.onload = (re) => {
+            document.getElementById('previewImg').src = re.target.result;
+            document.getElementById('imagePreview').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+};
+
+window.clearImage = function() {
+    selectedFile = null;
+    document.getElementById('imageInput').value = '';
+    document.getElementById('imagePreview').classList.add('hidden');
+};
+
+window.vote = async function(id, type, reactionValue = null, btnElement = null) {
+    try {
+        const data = await API.votePost(id, type, reactionValue);
+        if (data.status === 'success') {
+            // Update the UI locally for better UX
+            const updatedPost = data.data;
+            // Find post in currentFeedData and update it
+            const idx = currentFeedData.findIndex(p => p._id === id);
+            if (idx > -1) {
+                currentFeedData[idx] = updatedPost;
+                const activeContainer = document.getElementById('feed') || document.getElementById('exploreFeed') || document.getElementById('heartsFeed');
+                window.renderFeed(activeContainer, currentFeedData);
+            }
+        }
+    } catch (e) {
+        console.error('Vote failed:', e);
+    }
+};
+
 window.renderFeed = function(targetEl = feedContainer, data = currentFeedData) {
     if (!targetEl) return;
     
@@ -169,38 +209,61 @@ window.renderFeed = function(targetEl = feedContainer, data = currentFeedData) {
         return;
     }
 
-    targetEl.innerHTML = data.map(post => `
+    targetEl.innerHTML = data.map(post => {
+        const reactions = post.reactions || {};
+        const reactionCounts = Object.entries(reactions).map(([val, count]) => `
+            <button onclick="event.stopPropagation(); vote('${post._id}', 'reaction', '${val}')" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-blue-50 rounded-full transition-colors">
+                <span class="text-xs">${val}</span>
+                <span class="text-[10px] font-bold text-gray-500">${count}</span>
+            </button>
+        `).join('');
+
+        return `
         <div class="card p-6 mb-6 scale-sm hover:translate-y-[-2px] transition-all cursor-pointer" onclick="openComments('${post._id}')">
             <div class="flex items-center gap-2 mb-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                 <div class="w-1.5 h-1.5 rounded-full bg-gray-300"></div>${post.type || 'deep'}
             </div>
+            
+            ${post.imageUrl ? `
+                <div class="mb-4 rounded-2xl overflow-hidden border border-gray-100">
+                    <img src="${post.imageUrl}" class="w-full h-auto max-h-80 object-cover" loading="lazy">
+                </div>
+            ` : ''}
+
             <div class="relative">
                 ${formatPassage(post.text, post._id, post.blurred && userSettings.revealEnabled)}
                 ${(post.blurred && userSettings.revealEnabled) ? `<button onclick="event.stopPropagation(); reveal('${post._id}')" id="btn-${post._id}" class="absolute inset-0 flex items-center justify-center"><span class="bg-white px-4 py-2 rounded-full text-xs font-bold text-blue-600 shadow-sm">Tap to reveal</span></button>` : ''}
             </div>
-            <div class="flex items-center gap-6 mt-6">
-                <!-- Like -->
-                <button onclick="event.stopPropagation(); like('${post._id}', this)" class="flex items-center gap-2 group text-gray-400 font-bold">
+
+            <!-- Reactions Row -->
+            <div class="flex flex-wrap gap-2 mt-6">
+                <button onclick="event.stopPropagation(); vote('${post._id}', 'like')" class="flex items-center gap-2 group ${post.userVote === 'like' ? 'text-blue-600' : 'text-gray-400'} font-bold">
                     <div class="w-10 h-10 rounded-full flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12M2 10.5a2 2 0 0 1 2-2h3v12H4a2 2 0 0 1-2-2v-8zM7 8.5c0-1.5 1-3 3-3s2.5 1.5 2.5 3v2h5a2 2 0 0 1 2 2v2a6 6 0 0 1-2 5h-7.5"/></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="${post.userVote === 'like' ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12M2 10.5a2 2 0 0 1 2-2h3v12H4a2 2 0 0 1-2-2v-8zM7 8.5c0-1.5 1-3 3-3s2.5 1.5 2.5 3v2h5a2 2 0 0 1 2 2v2a6 6 0 0 1-2 5h-7.5"/></svg>
                     </div>
-                    <span class="text-xs group-hover:text-blue-600">${post.likes || 0}</span>
+                    <span class="text-xs">${post.likes || 0}</span>
                 </button>
-                <!-- Dislike -->
-                <button onclick="event.stopPropagation(); dislike('${post._id}', this)" class="flex items-center gap-2 group text-gray-400 font-bold">
+                <button onclick="event.stopPropagation(); vote('${post._id}', 'dislike')" class="flex items-center gap-2 group ${post.userVote === 'dislike' ? 'text-red-600' : 'text-gray-400'} font-bold">
                     <div class="w-10 h-10 rounded-full flex items-center justify-center group-hover:bg-red-50 transition-colors">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transform rotate-180 translate-y-[2px]"><path d="M7 10v12M2 10.5a2 2 0 0 1 2-2h3v12H4a2 2 0 0 1-2-2v-8zM7 8.5c0-1.5 1-3 3-3s2.5 1.5 2.5 3v2h5a2 2 0 0 1 2 2v2a6 6 0 0 1-2 5h-7.5"/></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="${post.userVote === 'dislike' ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transform rotate-180 translate-y-[2px]"><path d="M7 10v12M2 10.5a2 2 0 0 1 2-2h3v12H4a2 2 0 0 1-2-2v-8zM7 8.5c0-1.5 1-3 3-3s2.5 1.5 2.5 3v2h5a2 2 0 0 1 2 2v2a6 6 0 0 1-2 5h-7.5"/></svg>
                     </div>
-                    <span class="text-xs group-hover:text-red-600">${post.dislikes || 0}</span>
+                    <span class="text-xs">${post.dislikes || 0}</span>
                 </button>
-                <!-- Comments -->
+                
+                ${reactionCounts}
+
+                <button onclick="event.stopPropagation(); window.promptReaction('${post._id}')" class="w-10 h-10 rounded-full border-2 border-dashed border-gray-100 flex items-center justify-center text-gray-300 hover:text-blue-500 hover:border-blue-200 transition-all">
+                    <span class="text-xl">+</span>
+                </button>
+
                 <div class="flex items-center gap-2 ml-auto text-gray-400 font-bold">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     <span class="text-xs">${(post.comments || []).length}</span>
                 </div>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 
     if (!isFeedEnd && data.length >= 10) {
         targetEl.insertAdjacentHTML('beforeend', `
@@ -208,6 +271,13 @@ window.renderFeed = function(targetEl = feedContainer, data = currentFeedData) {
                 Load More Discoveries...
             </button>
         `);
+    }
+};
+
+window.promptReaction = function(id) {
+    const val = prompt("Enter an emoji or short reaction:");
+    if (val && val.length > 0 && val.length < 10) {
+        window.vote(id, 'reaction', val.trim());
     }
 };
 
@@ -220,27 +290,6 @@ window.reveal = function(id) {
     }
 };
 
-window.like = async function(id, btnElement) {
-    if (btnElement.classList.contains('text-red-500')) return;
-    try {
-        await API.likePost(id, myDeviceId);
-        const countSpan = btnElement.querySelector('span');
-        countSpan.textContent = parseInt(countSpan.textContent) + 1;
-        btnElement.classList.remove('text-gray-400');
-        btnElement.classList.add('text-red-500');
-    } catch(e) {}
-};
-
-window.dislike = async function(id, btnElement) {
-    if (btnElement.classList.contains('text-blue-500')) return;
-    try {
-        await API.dislikePost(id, myDeviceId);
-        const countSpan = btnElement.querySelector('span');
-        countSpan.textContent = parseInt(countSpan.textContent) + 1;
-        btnElement.classList.remove('text-gray-400');
-        btnElement.classList.add('text-blue-500');
-    } catch(e) {}
-};
 
 window.openComments = function(postId) {
     currentPostId = postId;
@@ -333,29 +382,44 @@ window.likeComment = async function(pid, cid, isLike) {
 window.addPost = async function() {
     const val = confessionInput.value;
     const type = val.toLowerCase().includes('love') ? 'deep' : (val.length > 100 ? 'secret' : 'funny');
-    const blurred = val.length > 50;
+    const blurred = val.length > 40; // Simplified threshold
+    const postBtn = document.getElementById('postBtn');
     
-    postBtn.textContent = 'Posting...';
+    postBtn.textContent = 'Wait...';
     postBtn.disabled = true;
 
     try {
-        const payload = await API.addPost(val, type, blurred);
+        let imageUrl = '';
+        if (selectedFile) {
+            postBtn.textContent = 'Uploading...';
+            const uploadRes = await API.uploadImage(selectedFile);
+            if (uploadRes.status === 'success') {
+                imageUrl = uploadRes.data.imageUrl;
+            }
+        }
+
+        postBtn.textContent = 'Posting...';
+        const payload = await API.addPost(val, type, blurred, imageUrl);
         
-        // Cache this post ID to localStorage so Hearts can track it
-        if (payload?.data?.id || payload?.data?._id) {
+        if (payload?.status === 'success') {
             const myId = payload.data.id || payload.data._id;
             const myPosts = JSON.parse(localStorage.getItem('myConfessions') || '[]');
             myPosts.push(myId);
             localStorage.setItem('myConfessions', JSON.stringify(myPosts));
-        }
 
-        window.toggleDrawer('composeModal', false);
-        confessionInput.value = '';
-        if (document.getElementById('feed')) await window.loadFeed(currentCategory);
+            window.toggleDrawer('composeModal', false);
+            confessionInput.value = '';
+            window.clearImage();
+            if (document.getElementById('feed')) await window.loadFeed(currentCategory);
+        } else {
+            alert(payload.message || "Failed to post");
+        }
     } catch(e) {
-        alert("Failed to post");
+        console.error(e);
+        alert("Something went wrong");
     } finally {
         postBtn.textContent = 'Post';
+        postBtn.disabled = false;
     }
 };
 
