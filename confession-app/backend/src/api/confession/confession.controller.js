@@ -75,12 +75,26 @@ export const addComment = catchAsync(async (req, res) => {
   res.status(201).json({ status: 'success', message: 'Comment added', data: confession });
 });
 
+export const getComments = catchAsync(async (req, res) => {
+  const { page, limit } = req.query;
+  const comments = await confessionService.getConfessionComments(req.params.id, page, limit);
+  res.status(200).json({ status: 'success', data: comments });
+});
+
 export const voteComment = catchAsync(async (req, res) => {
   const { commentId } = req.params;
   const { isLike, deviceId } = req.body;
   const devId = deviceId || req.headers['x-device-id'];
   const confession = await confessionService.voteComment(req.params.id, commentId, isLike, devId);
   res.status(200).json({ status: 'success', message: 'Voted successfully', data: confession });
+});
+
+export const reactComment = catchAsync(async (req, res) => {
+  const { commentId } = req.params;
+  const { reactionValue, deviceId } = req.body;
+  const devId = deviceId || req.headers['x-device-id'];
+  const confession = await confessionService.reactComment(req.params.id, commentId, reactionValue, devId);
+  res.status(200).json({ status: 'success', message: 'Reaction added', data: confession });
 });
 
 export const searchConfessions = catchAsync(async (req, res) => {
@@ -99,4 +113,29 @@ export const getActivity = catchAsync(async (req, res) => {
 export const getStats = catchAsync(async (req, res) => {
   const userCount = await confessionService.getUniqueUserCount();
   res.status(200).json({ status: 'success', data: { userCount } });
+});
+
+export const getMyConfessions = catchAsync(async (req, res) => {
+  const deviceId = req.headers['x-device-id'];
+  const { page, limit } = req.query;
+  const confessions = await confessionService.getMyConfessions(deviceId, page, limit);
+  res.status(200).json({ status: 'success', data: confessions });
+});
+
+export const updateConfession = catchAsync(async (req, res) => {
+  const deviceId = req.headers['x-device-id'];
+  const confession = await confessionService.updateConfession(req.params.id, deviceId, req.body);
+  res.status(200).json({ status: 'success', message: 'Updated successfully', data: confession });
+});
+
+export const deleteConfession = catchAsync(async (req, res) => {
+  const deviceId = req.headers['x-device-id'];
+  await confessionService.deleteConfession(req.params.id, deviceId);
+  res.status(200).json({ status: 'success', message: 'Deleted successfully' });
+});
+
+export const adminUpdateStatus = catchAsync(async (req, res) => {
+  const { status } = req.body;
+  const confession = await confessionService.adminUpdateStatus(req.params.id, status);
+  res.status(200).json({ status: 'success', message: 'Status updated', data: confession });
 });

@@ -84,11 +84,19 @@ export async function reactToPost(postId, type) {
   return data.data;
 }
 
-export async function reportPost(postId) {
+export async function reportPost(postId, reason = "OTHER") {
   const data = await request(`/confessions/report/${postId}`, {
-    method: "POST"
+    method: "POST",
+    body: JSON.stringify({ reason })
   });
   return data.data;
+}
+
+export async function getComments(postId, page = 1, limit = 20) {
+  const data = await request(`/confessions/${postId}/comments?page=${page}&limit=${limit}`, {
+    cache: "no-store"
+  });
+  return data.data || [];
 }
 
 export async function votePost(postId, voteType, deviceId) {

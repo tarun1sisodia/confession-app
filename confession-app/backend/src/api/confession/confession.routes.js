@@ -2,6 +2,7 @@ import express from 'express';
 import * as confessionController from './confession.controller.js';
 import { rateLimiter } from '../../middlewares/rateLimiter.middleware.js';
 import upload from '../../middlewares/upload.middleware.js';
+import AppError from '../../utils/AppError.js';
 
 import { validate } from '../../middlewares/validate.middleware.js';
 import * as schemas from './confession.validation.js';
@@ -34,7 +35,7 @@ router.post('/:id/comments/:commentId/react', rateLimiter({ max: 30, keySuffix: 
 // Admin Moderation
 const adminAuth = (req, res, next) => {
   const adminKey = req.headers['x-admin-key'];
-  if (adminKey !== process.env.ADMIN_KEY && adminKey !== 'temp_admin_key_123') {
+  if (adminKey !== process.env.ADMIN_KEY) {
     throw new AppError('Unauthorized admin access', 401);
   }
   next();

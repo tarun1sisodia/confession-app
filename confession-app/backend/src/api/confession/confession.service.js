@@ -184,16 +184,35 @@ const applyVoteMutation = (update, type, reactionValue, delta) => {
 export const getAllConfessions = async (typeFilter, page = 1, limit = 10, deviceId = null) => {
   const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
   const safeLimit = Math.min(20, Math.max(1, Number.parseInt(limit, 10) || 10));
-  const query = getPublicFilter(typeFilter ? { type: typeFilter } : { status: 'ACTIVE' });
   const skip = (safePage - 1) * safeLimit;
 
-  const confessions = await Confession.find(query)
-    .select('-comments') // Exclude full comments array
-    .addFields({ commentCount: { $size: '$comments' } }) // Store count
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(safeLimit);
+  const match = {
+    status: 'ACTIVE',
+    reports: { $lt: VISIBLE_REPORT_THRESHOLD }
+  };
 
+  if (typeFilter) {
+    match.type = typeFilter;
+  }
+
+  const pipeline = [
+    { $match: match },
+    { $sort: { createdAt: -1 } },
+    { $skip: skip },
+    { $limit: safeLimit },
+    {
+      $addFields: {
+        commentCount: { $size: { $ifNull: ['$comments', []] } }
+      }
+    },
+    {
+      $project: {
+        comments: 0
+      }
+    }
+  ];
+
+  const confessions = await Confession.aggregate(pipeline);
   const voteMap = await buildVoteMap(confessions, deviceId);
   return confessions.map((confession) => formatConfession(confession, voteMap));
 };
@@ -229,7 +248,7 @@ export const getTrendingConfessions = async (deviceId = null) => {
   return ranked.map((confession) => formatConfession(confession, voteMap));
 };
 
-export const createConfession = async (data) => {
+export const createConfession = async (data, deviceId) => {
   const text = normalizeText(data.text, 'Confession text', 1000);
   const type = data.type || 'deep';
   validateType(type);
@@ -238,6 +257,7 @@ export const createConfession = async (data) => {
     imageUrl: normalizeImageUrl(data.imageUrl),
     text,
     type,
+    authorDeviceIdHash: deviceId ? hashDeviceId(deviceId) : undefined,
     blurred: !!data.blurred
   };
 
@@ -506,6 +526,26 @@ export const deleteConfession = async (id, deviceId) => {
   confession.status = 'DELETED';
   await confession.save();
   return { id, status: 'DELETED' };
+};
+
+export const adminUpdateStatus = async (id, status) => {
+  const confession = await Confession.findById(id);
+  if (!confession) throw new AppError('Confession not found', 404);
+
+  const validStatuses = ['ACTIVE', 'HIDDEN', 'DELETED'];
+  if (!validStatuses.includes(status)) {
+    throw new AppError('Invalid status', 400);
+  }
+
+  confession.status = status;
+  if (status === 'ACTIVE') {
+    confession.reports = 0;
+    // We don't delete Reports entries to prevent re-reporting spam by same users,
+    // but we can clear the count for visibility.
+  }
+
+  await confession.save();
+  return formatConfession(confession);
 };
 
 export const getUniqueUserCount = async () => UserTracker.countDocuments();
