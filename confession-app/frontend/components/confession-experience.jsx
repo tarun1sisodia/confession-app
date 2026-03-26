@@ -6,6 +6,7 @@ import {
   addComment,
   addPost,
   getActivity,
+  getComments,
   getFeed,
   getSettings,
   reactToPost,
@@ -81,12 +82,15 @@ export function ConfessionExperience({ mode }) {
     [activePostId, posts]
   );
 
+  const [activeComments, setActiveComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+
   const sortedComments = useMemo(() => {
-    if (!activePost?.comments) {
+    if (!activeComments.length) {
       return [];
     }
 
-    const clone = [...activePost.comments];
+    const clone = [...activeComments];
     if (commentSort === "newest") {
       return clone.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     }
@@ -94,10 +98,10 @@ export function ConfessionExperience({ mode }) {
     return clone.sort(
       (a, b) => (b.likes || 0) - (b.dislikes || 0) - ((a.likes || 0) - (a.dislikes || 0))
     );
-  }, [activePost, commentSort]);
+  }, [activeComments, commentSort]);
 
   const metrics = useMemo(() => {
-    const totalComments = posts.reduce((sum, post) => sum + (post.comments?.length || 0), 0);
+    const totalComments = posts.reduce((sum, post) => sum + (post.commentCount || 0), 0);
     const totalReactions = posts.reduce(
       (sum, post) => sum + (post.likes || 0) + (post.dislikes || 0),
       0
@@ -308,6 +312,15 @@ export function ConfessionExperience({ mode }) {
 
     try {
       const updatedPost = await voteComment(activePostId, commentId, isLike, deviceId);
+      setActiveComments((current) =>
+        current.map((c) => {
+          if (c._id === commentId) {
+            const up = updatedPost.comments?.find((xc) => xc._id === commentId);
+            return up || c;
+          }
+          return c;
+        })
+      );
       setPosts((current) =>
         current.map((post) => (post._id === activePostId ? updatedPost : post))
       );
@@ -326,6 +339,10 @@ export function ConfessionExperience({ mode }) {
       setPosts((current) =>
         current.map((post) => (post._id === activePostId ? updatedPost : post))
       );
+      // Refresh comments from API or just prepend if easy. Backend returns full post with new comment on top.
+      if (updatedPost.comments) {
+        setActiveComments(updatedPost.comments);
+      }
       setCommentDraft("");
     } catch (submissionError) {
       setError(submissionError.message || "Comment failed.");
@@ -432,8 +449,11 @@ export function ConfessionExperience({ mode }) {
   }
 
   async function handleReport(postId) {
+    const reason = window.confirm("Report this post for inappropriate content?") ? "OTHER" : null;
+    if (!reason) return;
+
     try {
-      const updatedPost = await reportPost(postId);
+      const updatedPost = await reportPost(postId, reason);
       if (updatedPost?.isReported) {
         setPosts((current) => current.filter((post) => post._id !== postId));
       } else if (updatedPost?._id) {
@@ -443,6 +463,16 @@ export function ConfessionExperience({ mode }) {
     } catch {
       setError("Reporting failed.");
     }
+  }
+
+  function openDiscussion(postId) {
+    setActivePostId(postId);
+    setActiveComments([]);
+    setCommentsLoading(true);
+    getComments(postId)
+      .then((data) => setActiveComments(data))
+      .catch(() => setError("Failed to load comments."))
+      .finally(() => setCommentsLoading(false));
   }
 
   return (
@@ -619,9 +649,9 @@ export function ConfessionExperience({ mode }) {
                       <ActionIcon type="dislike" />
                       <span>{formatCompactNumber(post.dislikes || 0)}</span>
                     </button>
-                    <button className="stat-button accent icon-only" aria-label="Open discussion" onClick={() => setActivePostId(post._id)}>
+                    <button className="stat-button accent icon-only" aria-label="Open discussion" onClick={() => openDiscussion(post._id)}>
                       <ActionIcon type="comment" />
-                      <span>{formatCompactNumber(post.comments?.length || 0)}</span>
+                      <span>{formatCompactNumber(post.commentCount || 0)}</span>
                     </button>
                   </div>
 
@@ -660,7 +690,7 @@ export function ConfessionExperience({ mode }) {
             </div>
             <div className="bookmark-list">
               {bookmarkedPosts.map((post) => (
-                <button key={post._id} className="bookmark-card" onClick={() => setActivePostId(post._id)}>
+                <button key={post._id} className="bookmark-card" onClick={() => openDiscussion(post._id)}>
                   <span>{post.type || "deep"}</span>
                   <p>{post.text}</p>
                 </button>
