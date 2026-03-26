@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import confessionRoutes from './api/confession/confession.routes.js';
 import settingsRoutes from './api/theme/settings.routes.js';
+import env from './config/env.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 import AppError from './utils/AppError.js';
 import { trackUser } from './middlewares/analytics.middleware.js';
@@ -9,7 +10,7 @@ import { trackUser } from './middlewares/analytics.middleware.js';
 const app = express();
 app.set('trust proxy', 1);
 
-const allowedOrigins = (process.env.FRONTEND_URL || "*")
+const allowedOrigins = env.FRONTEND_URL
   .split(",")
   .map(origin => origin.trim())
   .filter(Boolean);
@@ -24,14 +25,14 @@ app.use((req, res, next) => {
 });
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
 
     callback(new Error("Not allowed by CORS"));
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
 app.use(express.json({ limit: '1mb' })); 

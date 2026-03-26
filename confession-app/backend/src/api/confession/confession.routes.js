@@ -34,6 +34,10 @@ router.post('/:id/comments/:commentId/react', rateLimiter({ max: 30, keySuffix: 
 
 // Admin Moderation
 const adminAuth = (req, res, next) => {
+  if (!process.env.ADMIN_KEY) {
+    throw new AppError('Admin access is not configured', 503);
+  }
+
   const adminKey = req.headers['x-admin-key'];
   if (adminKey !== process.env.ADMIN_KEY) {
     throw new AppError('Unauthorized admin access', 401);

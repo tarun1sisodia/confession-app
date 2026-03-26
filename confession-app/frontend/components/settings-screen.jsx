@@ -11,19 +11,15 @@ import {
   applyUiSettings,
   getPresetById
 } from "@/lib/customization";
-import { DEFAULT_UI_SETTINGS, getDeviceId, getUiSettings, saveUiSettings } from "@/lib/storage";
+import { DEFAULT_UI_SETTINGS, getUiSettings, saveUiSettings } from "@/lib/storage";
 
 export function SettingsScreen() {
-  const [deviceId, setDeviceId] = useState("");
   const [settings, setSettings] = useState({ theme: "system", revealEnabled: true });
   const [uiSettings, setUiSettings] = useState(getUiSettings());
   const activePreset = useMemo(() => getPresetById(uiSettings.presetId), [uiSettings.presetId]);
 
   useEffect(() => {
-    const nextDeviceId = getDeviceId();
-    setDeviceId(nextDeviceId);
-
-    getSettings(nextDeviceId)
+    getSettings()
       .then((data) => setSettings(data))
       .catch(() => undefined);
   }, []);
@@ -41,11 +37,8 @@ export function SettingsScreen() {
 
   async function persistAppSettings(nextSettings) {
     setSettings(nextSettings);
-    if (!deviceId) {
-      return;
-    }
     try {
-      await updateSettings(deviceId, nextSettings);
+      await updateSettings(nextSettings);
     } catch {}
   }
 

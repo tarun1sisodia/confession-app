@@ -20,9 +20,28 @@ const getTimeAgo = (date) => {
 };
 
 const getPublicFilter = (extra = {}) => ({
-  reports: { $lt: VISIBLE_REPORT_THRESHOLD },
-  ...extra
+  ...extra,
+  status: 'ACTIVE',
+  reports: { $lt: VISIBLE_REPORT_THRESHOLD }
 });
+
+const ensureValidObjectId = (value, fieldName = 'ID') => {
+  if (!mongoose.Types.ObjectId.isValid(value)) {
+    throw new AppError(`${fieldName} is invalid`, 400);
+  }
+
+  return value;
+};
+
+const findPublicConfessionById = async (id, projection = null) => {
+  ensureValidObjectId(id, 'Confession ID');
+  const confession = await Confession.findOne(getPublicFilter({ _id: id }), projection);
+  if (!confession) {
+    throw new AppError('Confession not found', 404);
+  }
+
+  return confession;
+};
 
 const normalizeDeviceId = (deviceId) => {
   if (!deviceId || typeof deviceId !== 'string') {
@@ -86,7 +105,7 @@ const getReactionTotal = (reactions = {}) => {
 const getEngagementScore = (post) => {
   const likes = post.likes || 0;
   const dislikes = post.dislikes || 0;
-  const comments = post.comments?.length || 0;
+  const comments = post.commentCount ?? post.comments?.length ?? 0;
   const reactions = getReactionTotal(post.reactions || {});
   const ageHours = Math.max(
     1,
@@ -186,14 +205,7 @@ export const getAllConfessions = async (typeFilter, page = 1, limit = 10, device
   const safeLimit = Math.min(20, Math.max(1, Number.parseInt(limit, 10) || 10));
   const skip = (safePage - 1) * safeLimit;
 
-  const match = {
-    status: 'ACTIVE',
-    reports: { $lt: VISIBLE_REPORT_THRESHOLD }
-  };
-
-  if (typeFilter) {
-    match.type = typeFilter;
-  }
+  const match = getPublicFilter(typeFilter ? { type: typeFilter } : {});
 
   const pipeline = [
     { $match: match },
@@ -222,11 +234,9 @@ export const getConfessionComments = async (id, page = 1, limit = 20) => {
   const safeLimit = Math.min(50, Math.max(1, Number.parseInt(limit, 10) || 20));
   const skip = (safePage - 1) * safeLimit;
 
-  const confession = await Confession.findById(id, {
+  const confession = await findPublicConfessionById(id, {
     comments: { $slice: [skip, safeLimit] }
   });
-
-  if (!confession) throw new AppError('Confession not found', 404);
 
   return confession.comments.map((comment) => ({
     ...comment.toObject(),
@@ -267,8 +277,7 @@ export const createConfession = async (data, deviceId) => {
 
 export const votePost = async (id, deviceId, type, reactionValue = null) => {
   const normalizedDeviceId = normalizeDeviceId(deviceId);
-  const confession = await Confession.findById(id);
-  if (!confession) throw new AppError('Confession not found', 404);
+  await findPublicConfessionById(id);
 
   const existingVote = await Vote.findOne({ confessionId: id, deviceId: normalizedDeviceId, commentId: { $exists: false } });
   const update = { $inc: {} };
@@ -308,8 +317,7 @@ export const votePost = async (id, deviceId, type, reactionValue = null) => {
 
 export const reportConfession = async (id, deviceId, reason = 'OTHER', details = '') => {
   const normalizedDeviceId = normalizeDeviceId(deviceId);
-  const confession = await Confession.findById(id);
-  if (!confession) throw new AppError('Confession not found', 404);
+  const confession = await findPublicConfessionById(id);
 
   const existingReport = await Report.findOne({ confessionId: id, deviceId: normalizedDeviceId });
   if (existingReport) {
@@ -335,8 +343,7 @@ export const reportConfession = async (id, deviceId, reason = 'OTHER', details =
 export const addComment = async (confessionId, text) => {
   const normalizedText = normalizeText(text, 'Comment text', 500);
 
-  const confession = await Confession.findById(confessionId);
-  if (!confession) throw new AppError('Confession not found', 404);
+  const confession = await findPublicConfessionById(confessionId);
 
   confession.comments.unshift({ text: normalizedText });
   await confession.save();
@@ -344,6 +351,8 @@ export const addComment = async (confessionId, text) => {
 };
 
 export const voteComment = async (confessionId, commentId, isLike, deviceId) => {
+  ensureValidObjectId(confessionId, 'Confession ID');
+  ensureValidObjectId(commentId, 'Comment ID');
   const normalizedDeviceId = normalizeDeviceId(deviceId);
   const type = isLike ? 'like' : 'dislike';
 
@@ -371,7 +380,7 @@ export const voteComment = async (confessionId, commentId, isLike, deviceId) => 
   }
 
   const updated = await Confession.findOneAndUpdate(
-    { _id: confessionId, 'comments._id': commentId },
+    getPublicFilter({ _id: confessionId, 'comments._id': commentId }),
     update,
     { new: true }
   );
@@ -381,6 +390,8 @@ export const voteComment = async (confessionId, commentId, isLike, deviceId) => 
 };
 
 export const reactComment = async (confessionId, commentId, reactionValue, deviceId) => {
+  ensureValidObjectId(confessionId, 'Confession ID');
+  ensureValidObjectId(commentId, 'Comment ID');
   const normalizedDeviceId = normalizeDeviceId(deviceId);
   if (!ALLOWED_REACTIONS.has(reactionValue)) throw new AppError('Invalid reaction type', 400);
 
@@ -408,7 +419,7 @@ export const reactComment = async (confessionId, commentId, reactionValue, devic
   }
 
   const updated = await Confession.findOneAndUpdate(
-    { _id: confessionId, 'comments._id': commentId },
+    getPublicFilter({ _id: confessionId, 'comments._id': commentId }),
     update,
     { new: true }
   );
@@ -427,7 +438,7 @@ export const searchConfessions = async (query, deviceId = null, page = 1, limit 
 
   // 1. Try $text search first (requires the text index we added)
   let confessions = await Confession.find({
-    ...getPublicFilter({ status: 'ACTIVE' }),
+    ...getPublicFilter(),
     $text: { $search: normalizedQuery }
   }, {
     score: { $meta: 'textScore' }
@@ -440,7 +451,7 @@ export const searchConfessions = async (query, deviceId = null, page = 1, limit 
   if (confessions.length === 0) {
     const regexQuery = normalizedQuery.slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     confessions = await Confession.find({
-      ...getPublicFilter({ status: 'ACTIVE' }),
+      ...getPublicFilter(),
       text: { $regex: regexQuery, $options: 'i' }
     })
       .sort({ createdAt: -1 })
@@ -454,6 +465,7 @@ export const searchConfessions = async (query, deviceId = null, page = 1, limit 
 
 export const getActivity = async (postIds, deviceId = null) => {
   if (!Array.isArray(postIds) || postIds.length === 0) return [];
+  if (!deviceId) return [];
 
   const normalizedIds = [...new Set(postIds)]
     .filter((value) => mongoose.Types.ObjectId.isValid(value))
@@ -463,7 +475,11 @@ export const getActivity = async (postIds, deviceId = null) => {
     return [];
   }
 
-  const confessions = await Confession.find({ _id: { $in: normalizedIds } })
+  const hashedId = hashDeviceId(normalizeDeviceId(deviceId));
+  const confessions = await Confession.find(getPublicFilter({
+    _id: { $in: normalizedIds },
+    authorDeviceIdHash: hashedId
+  }))
     .sort({ updatedAt: -1 })
     .limit(30);
   const voteMap = await buildVoteMap(confessions, deviceId);
@@ -473,7 +489,7 @@ export const getActivity = async (postIds, deviceId = null) => {
 export const getMyConfessions = async (deviceId, page = 1, limit = 10) => {
   const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
   const safeLimit = Math.min(20, Math.max(1, Number.parseInt(limit, 10) || 10));
-  const hashedId = hashDeviceId(deviceId);
+  const hashedId = hashDeviceId(normalizeDeviceId(deviceId));
   const skip = (safePage - 1) * safeLimit;
 
   const confessions = await Confession.find({ authorDeviceIdHash: hashedId, status: { $ne: 'DELETED' } })
@@ -486,7 +502,7 @@ export const getMyConfessions = async (deviceId, page = 1, limit = 10) => {
 };
 
 export const updateConfession = async (id, deviceId, updateData) => {
-  const hashedId = hashDeviceId(deviceId);
+  const hashedId = hashDeviceId(normalizeDeviceId(deviceId));
   const confession = await Confession.findById(id);
 
   if (!confession) throw new AppError('Confession not found', 404);
@@ -515,7 +531,7 @@ export const updateConfession = async (id, deviceId, updateData) => {
 };
 
 export const deleteConfession = async (id, deviceId) => {
-  const hashedId = hashDeviceId(deviceId);
+  const hashedId = hashDeviceId(normalizeDeviceId(deviceId));
   const confession = await Confession.findById(id);
 
   if (!confession) throw new AppError('Confession not found', 404);

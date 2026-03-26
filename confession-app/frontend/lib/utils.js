@@ -49,7 +49,7 @@ export function shouldBlur(text) {
 export function getScore(post) {
   const likes = post.likes || 0;
   const dislikes = post.dislikes || 0;
-  const comments = post.comments?.length || 0;
+  const comments = post.commentCount ?? post.comments?.length ?? 0;
   const reactions = Object.values(post.reactions || {}).reduce((sum, value) => sum + (value || 0), 0);
   const ageHours = Math.max(1, (Date.now() - new Date(post.createdAt || Date.now()).getTime()) / 36e5);
   const freshnessBoost = ageHours < 12 ? 12 - ageHours : 0;
@@ -82,7 +82,7 @@ export function getTopTags(posts) {
 
 export function getPostSignal(post) {
   const reactions = post.reactions || {};
-  const comments = post.comments?.length || 0;
+  const comments = post.commentCount ?? post.comments?.length ?? 0;
   const likes = post.likes || 0;
   const support = reactions.relatable || 0;
   const laughs = reactions.funny || 0;

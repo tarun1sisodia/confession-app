@@ -2,7 +2,7 @@ import { getDeviceId } from "@/lib/storage";
 
 const API_ROOT = (
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:5000/api"
+  "/api"
 ).replace(/\/$/, "");
 
 async function request(path, options = {}) {
@@ -57,6 +57,13 @@ export async function getActivity(postIds) {
   return data.data || [];
 }
 
+export async function getMyPostsFeed({ page = 1, limit = 20 } = {}) {
+  const data = await request(`/confessions/my-posts?page=${page}&limit=${limit}`, {
+    cache: "no-store"
+  });
+  return data.data || [];
+}
+
 export async function addPost(payload) {
   const data = await request("/confessions/add", {
     method: "POST",
@@ -99,10 +106,9 @@ export async function getComments(postId, page = 1, limit = 20) {
   return data.data || [];
 }
 
-export async function votePost(postId, voteType, deviceId) {
+export async function votePost(postId, voteType) {
   const data = await request(`/confessions/${voteType}/${postId}`, {
-    method: "POST",
-    body: JSON.stringify({ deviceId })
+    method: "POST"
   });
   return data.data;
 }
@@ -115,23 +121,23 @@ export async function addComment(postId, text) {
   return data.data;
 }
 
-export async function voteComment(postId, commentId, isLike, deviceId) {
+export async function voteComment(postId, commentId, isLike) {
   const data = await request(`/confessions/${postId}/comments/${commentId}/vote`, {
     method: "POST",
-    body: JSON.stringify({ isLike, deviceId })
+    body: JSON.stringify({ isLike })
   });
   return data.data;
 }
 
-export async function getSettings(deviceId) {
-  const data = await request(`/settings/${deviceId}`, { cache: "no-store" });
+export async function getSettings() {
+  const data = await request("/settings", { cache: "no-store" });
   return data.data || { theme: "system", revealEnabled: true };
 }
 
-export async function updateSettings(deviceId, settings) {
+export async function updateSettings(settings) {
   const data = await request("/settings", {
     method: "POST",
-    body: JSON.stringify({ deviceId, ...settings })
+    body: JSON.stringify(settings)
   });
   return data.data;
 }

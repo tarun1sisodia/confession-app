@@ -4,8 +4,7 @@ import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getFeed } from "@/lib/api";
-import { getMyPosts } from "@/lib/storage";
+import { getFeed, getMyPostsFeed } from "@/lib/api";
 
 export function MobileAppShell() {
   const router = useRouter();
@@ -21,7 +20,7 @@ export function MobileAppShell() {
         await Promise.allSettled([
           getFeed({ category: "", page: 1, limit: 10 }),
           getFeed({ category: "trending", page: 1, limit: 10 }),
-          Promise.resolve(getMyPosts())
+          getMyPostsFeed({ page: 1, limit: 10 })
         ]);
       } finally {
         if (!cancelled) {

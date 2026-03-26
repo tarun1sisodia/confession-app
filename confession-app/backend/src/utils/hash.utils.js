@@ -1,4 +1,14 @@
 import crypto from 'crypto';
+import AppError from './AppError.js';
+
+const getDeviceIdSecret = () => {
+  const secret = process.env.DEVICE_ID_SECRET?.trim();
+  if (!secret) {
+    throw new AppError('Device identity hashing is not configured on the server', 503);
+  }
+
+  return secret;
+};
 
 /**
  * Hashes a device ID using HMAC with a secret key for security.
@@ -7,12 +17,9 @@ import crypto from 'crypto';
  */
 export const hashDeviceId = (deviceId) => {
   if (!deviceId) return '';
-  
-  // In production, SECRET_HASH_KEY should be an environment variable
-  const secret = process.env.DEVICE_ID_SECRET || 'confession-app-secret-default';
-  
+
   return crypto
-    .createHmac('sha256', secret)
+    .createHmac('sha256', getDeviceIdSecret())
     .update(deviceId)
     .digest('hex');
 };

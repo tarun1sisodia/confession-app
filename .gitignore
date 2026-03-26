@@ -16,6 +16,7 @@ dist/
 # Env
 .env*
 !.env.example
+!**/.env.example
 
 # IDE
 .vscode/

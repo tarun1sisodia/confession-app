@@ -5,9 +5,9 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   addComment,
   addPost,
-  getActivity,
   getComments,
   getFeed,
+  getMyPostsFeed,
   getSettings,
   reactToPost,
   reportPost,
@@ -21,7 +21,6 @@ import { applyUiSettings } from "@/lib/customization";
 import {
   getBookmarks,
   getDeviceId,
-  getMyPosts,
   getUiSettings,
   saveMyPost,
   toggleBookmark
@@ -119,14 +118,7 @@ export function ConfessionExperience({ mode }) {
     () => posts.filter((post) => bookmarks.includes(post._id)),
     [bookmarks, posts]
   );
-
-  const visiblePosts = useMemo(() => {
-    if (mode === "home") {
-      return posts;
-    }
-
-    return [...posts].sort((a, b) => getScore(b) - getScore(a));
-  }, [mode, posts]);
+  const visiblePosts = posts;
 
   function resolveTheme(theme) {
     if (theme === "system") {
@@ -153,7 +145,7 @@ export function ConfessionExperience({ mode }) {
     setBookmarks(getBookmarks());
     setUiSettings(nextUi);
 
-    getSettings(nextDeviceId)
+    getSettings()
       .then((data) => {
         setSettings(data);
         document.documentElement.dataset.theme = resolveTheme(data.theme);
@@ -228,20 +220,11 @@ export function ConfessionExperience({ mode }) {
     }
 
     if (mode === "hearts") {
-      const myPosts = getMyPosts();
-
-      if (!myPosts.length) {
-        setPosts([]);
-        setLoading(false);
-        setIsEnd(true);
-        return;
-      }
-
       setLoading(true);
-      getActivity(myPosts)
+      getMyPostsFeed({ page, limit: 20 })
         .then((data) => {
-          setPosts(data);
-          setIsEnd(true);
+          setPosts((current) => (page === 1 ? data : [...current, ...data]));
+          setIsEnd(data.length < 20);
         })
         .catch(() => {
           setError("We couldn't load your activity.");
@@ -279,12 +262,8 @@ export function ConfessionExperience({ mode }) {
     setSettings(nextSettings);
     applyTheme(nextSettings.theme);
 
-    if (!deviceId) {
-      return;
-    }
-
     try {
-      await updateSettings(deviceId, nextSettings);
+      await updateSettings(nextSettings);
     } catch {
       setError("Your preferences changed locally, but syncing failed.");
     }
@@ -296,7 +275,7 @@ export function ConfessionExperience({ mode }) {
     }
 
     try {
-      const updatedPost = await votePost(postId, voteType, deviceId);
+      const updatedPost = await votePost(postId, voteType);
       setPosts((current) =>
         current.map((post) => (post._id === postId ? updatedPost : post))
       );
@@ -311,7 +290,7 @@ export function ConfessionExperience({ mode }) {
     }
 
     try {
-      const updatedPost = await voteComment(activePostId, commentId, isLike, deviceId);
+      const updatedPost = await voteComment(activePostId, commentId, isLike);
       setActiveComments((current) =>
         current.map((c) => {
           if (c._id === commentId) {
