@@ -34,3 +34,5 @@ logs/
 *.log
 keystore/
 *.jks
+
+upload_certificate.pem
