@@ -4,6 +4,6 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://confession-app-dx2k.onrender.com/api/:splat"
+  to = "https://confession-app-a9eu.onrender.com/api/:splat"
   status = 200
   force = true
