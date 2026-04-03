@@ -32,4 +32,5 @@ export default {
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+  HEALTH_SECRET: process.env.HEALTH_SECRET,
 };

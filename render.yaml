@@ -26,5 +26,8 @@ services:
       - key: CLOUDINARY_URL
         sync: false
         # Set this in Render dashboard as a secret
+      - key: HEALTH_SECRET
+        generateValue: true
+        # Render will auto-generate a secure secret for cron job health checks
     healthCheckPath: /health
     autoDeploy: true

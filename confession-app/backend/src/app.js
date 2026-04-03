@@ -41,8 +41,22 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // Analytics Middleware
 app.use(trackUser);
 
-// Health Check
+// Health Check - Secured for cron jobs
 app.get('/health', (req, res) => {
+  const healthSecret = env.HEALTH_SECRET;
+  
+  // If HEALTH_SECRET is set, require authentication
+  if (healthSecret) {
+    const providedSecret = req.headers['x-health-secret'] || req.query.secret;
+    
+    if (providedSecret !== healthSecret) {
+      return res.status(401).json({ 
+        status: 'unauthorized', 
+        message: 'Invalid or missing health secret' 
+      });
+    }
+  }
+  
   res.status(200).json({ status: 'healthy', timestamp: new Date() });
 });
 
