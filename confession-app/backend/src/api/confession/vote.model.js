@@ -10,9 +10,10 @@ const voteSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     required: false // Only set for comment votes
   },
-  deviceId: {
+  deviceIdHash: {
     type: String,
-    required: true
+    required: true,
+    index: true
   },
   voteType: {
     type: String,
@@ -27,7 +28,7 @@ const voteSchema = new mongoose.Schema({
 
 // Unique vote per device per (post or comment). 
 // For posts (commentId null), only one of [like, dislike, reaction] allowed.
-voteSchema.index({ confessionId: 1, commentId: 1, deviceId: 1 }, { unique: true });
+voteSchema.index({ confessionId: 1, commentId: 1, deviceIdHash: 1 }, { unique: true });
 
 const Vote = mongoose.model('Vote', voteSchema);
 export default Vote;

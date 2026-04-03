@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import * as confessionController from './confession.controller.js';
 import { rateLimiter } from '../../middlewares/rateLimiter.middleware.js';
 import upload from '../../middlewares/upload.middleware.js';
@@ -17,7 +18,7 @@ router.get('/stats', confessionController.getStats);
 router.get('/my-posts', confessionController.getMyConfessions);
 router.post('/activity', confessionController.getActivity);
 
-router.post('/upload', rateLimiter({ max: 10, keySuffix: 'upload' }), upload.single('image'), confessionController.uploadImage);
+router.post('/upload', rateLimiter({ max: 10, keySuffix: 'upload' }), upload.single('image'), upload.errorHandler, confessionController.uploadImage);
 router.post('/add', rateLimiter({ max: 3, message: 'Take a breath! You can only post 3 times per minute.', keySuffix: 'create-post' }), validate(schemas.createConfessionSchema), confessionController.addConfession);
 router.patch('/:id', rateLimiter({ max: 10, keySuffix: 'edit-post' }), validate(schemas.updateConfessionSchema), confessionController.updateConfession);
 router.delete('/:id', rateLimiter({ max: 5, keySuffix: 'delete-post' }), confessionController.deleteConfession);
@@ -33,19 +34,33 @@ router.post('/:id/comments', rateLimiter({ max: 20, keySuffix: 'comment-create' 
 router.post('/:id/comments/:commentId/vote', rateLimiter({ max: 30, keySuffix: 'comment-vote' }), confessionController.voteComment);
 router.post('/:id/comments/:commentId/react', rateLimiter({ max: 30, keySuffix: 'comment-react' }), confessionController.reactComment);
 
-// Admin Moderation
+// Admin Moderation - Secure timing-safe comparison
 const adminAuth = (req, res, next) => {
   if (!env.ADMIN_KEY) {
     throw new AppError('Admin access is not configured', 503);
   }
 
-  const adminKey = req.headers['x-admin-key'];
-  if (adminKey !== env.ADMIN_KEY) {
+  const providedKey = req.headers['x-admin-key'] || '';
+  const serverKey = env.ADMIN_KEY || '';
+  
+  // Use timing-safe comparison to prevent timing attacks
+  try {
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(providedKey),
+      Buffer.from(serverKey)
+    );
+    
+    if (!isValid) {
+      throw new AppError('Unauthorized admin access', 401);
+    }
+  } catch (error) {
+    // If buffers are different lengths, timingSafeEqual throws
     throw new AppError('Unauthorized admin access', 401);
   }
+  
   next();
 };
 
-router.post('/admin/moderate/:id', adminAuth, confessionController.adminUpdateStatus);
+router.post('/admin/moderate/:id', rateLimiter({ max: 10, keySuffix: 'admin-moderate' }), adminAuth, confessionController.adminUpdateStatus);
 
 export default router;

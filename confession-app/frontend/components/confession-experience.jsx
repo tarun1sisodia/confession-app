@@ -65,6 +65,7 @@ export function ConfessionExperience({ mode }) {
   const [composeImageUrl, setComposeImageUrl] = useState("");
   const [composeImagePreview, setComposeImagePreview] = useState("");
   const [isImageUploading, setIsImageUploading] = useState(false);
+  const [uploadAbortController, setUploadAbortController] = useState(null);
   const [activeImageUrl, setActiveImageUrl] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
   const [activePostId, setActivePostId] = useState("");
@@ -404,6 +405,29 @@ export function ConfessionExperience({ mode }) {
       return;
     }
 
+    // Prevent race conditions - if already uploading, ignore new selection
+    if (isImageUploading) {
+      setError("Please wait for current upload to complete");
+      event.target.value = "";
+      return;
+    }
+
+    // Validate file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError(`Image too large. Maximum size is 5MB (selected: ${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      event.target.value = "";
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      setError('Invalid file type. Please use JPG, PNG, WEBP, or GIF.');
+      event.target.value = "";
+      return;
+    }
+
     if (previewUrlRef.current) {
       URL.revokeObjectURL(previewUrlRef.current);
     }
@@ -416,6 +440,9 @@ export function ConfessionExperience({ mode }) {
 
     try {
       const uploadedUrl = await uploadPostImage(file);
+      if (!uploadedUrl) {
+        throw new Error('Upload failed - no URL returned from server');
+      }
       setComposeImageUrl(uploadedUrl);
     } catch (uploadError) {
       setComposeImagePreview("");

@@ -39,4 +39,19 @@ const upload = multer({
   }
 });
 
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return next(new AppError('File too large. Maximum size is 5MB.', 400));
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return next(new AppError('Unexpected field name. Use "image" field.', 400));
+    }
+    return next(new AppError(`Upload error: ${err.message}`, 400));
+  }
+  next(err);
+};
+
+upload.errorHandler = handleMulterError;
+
 export default upload;

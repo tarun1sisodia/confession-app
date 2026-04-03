@@ -50,15 +50,26 @@ export const uploadImage = catchAsync(async (req, res) => {
     throw new AppError('No file uploaded', 400);
   }
 
+  const filePath = req.file.path;
+  
   try {
-    const imageUrl = await uploadToCloudinary(req.file.path);
-    // Cleanup local file after upload
-    if (fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+    const imageUrl = await uploadToCloudinary(filePath);
+    
+    // Cleanup local file after successful upload
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
     }
+    
     res.status(200).json({ status: 'success', data: { imageUrl } });
   } catch (error) {
-    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    // Cleanup local file on error
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup upload file:', cleanupError);
+      }
+    }
     throw error;
   }
 });

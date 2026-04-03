@@ -22,7 +22,19 @@ async function request(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data?.message || "Request failed");
+    // Provide specific error messages based on status code
+    const statusMessages = {
+      400: data?.message || "Invalid request",
+      401: "Unauthorized access",
+      403: "Access forbidden",
+      404: "Resource not found",
+      429: "Too many requests. Please slow down.",
+      500: "Server error. Please try again later.",
+      503: data?.message || "Service temporarily unavailable"
+    };
+    
+    const errorMessage = statusMessages[response.status] || data?.message || "Request failed";
+    throw new Error(errorMessage);
   }
 
   return data;
@@ -80,7 +92,12 @@ export async function uploadPostImage(file) {
     method: "POST",
     body: formData
   });
-  return data.data?.imageUrl || "";
+  
+  if (!data.data?.imageUrl) {
+    throw new Error("Upload failed - server returned no image URL");
+  }
+  
+  return data.data.imageUrl;
 }
 
 export async function reactToPost(postId, type) {

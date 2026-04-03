@@ -1,5 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import fs from 'fs';
+import path from 'path';
 import confessionRoutes from './api/confession/confession.routes.js';
 import settingsRoutes from './api/theme/settings.routes.js';
 import env from './config/env.js';
@@ -10,19 +13,57 @@ import { trackUser } from './middlewares/analytics.middleware.js';
 const app = express();
 app.set('trust proxy', 1);
 
+// Initialize upload directory
+const uploadDir = path.resolve('uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('✓ Upload directory created:', uploadDir);
+} else {
+  console.log('✓ Upload directory exists:', uploadDir);
+}
+
+// Verify upload directory is writable
+try {
+  const testFile = path.join(uploadDir, '.write-test');
+  fs.writeFileSync(testFile, 'test');
+  fs.unlinkSync(testFile);
+  console.log('✓ Upload directory is writable');
+} catch (error) {
+  console.error('✗ Upload directory is not writable:', error.message);
+  console.error('  Image uploads will fail. Please check directory permissions.');
+}
+
 const allowedOrigins = env.FRONTEND_URL
   .split(",")
   .map(origin => origin.trim())
   .filter(Boolean);
 
-// Global Middlewares
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  next();
-});
+// Security Headers with Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "https:", "data:", "blob:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"]
+    }
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: { action: 'deny' },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -35,8 +76,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
-app.use(express.json({ limit: '1mb' })); 
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.json({ limit: '5mb' })); 
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // Analytics Middleware
 app.use(trackUser);
