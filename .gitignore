@@ -32,7 +32,20 @@ Thumbs.db
 # Misc
 logs/
 *.log
+
+# Android Signing & Play Store (DO NOT COMMIT!)
 keystore/
 *.jks
+*.keystore
+*.pem
+**/keystore.properties
+**/local.properties
 
-upload_certificate.pem
+# Android Build Artifacts
+**/android/app/build/
+**/android/.gradle/
+*.apk
+*.aab
+
+# Release builds
+**/app/release/
