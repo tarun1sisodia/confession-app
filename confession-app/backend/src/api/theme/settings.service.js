@@ -1,5 +1,6 @@
 import Settings from './settings.model.js';
 import AppError from '../../utils/AppError.js';
+import { hashDeviceId } from '../../utils/hash.utils.js';
 
 const ALLOWED_THEMES = new Set(['light', 'dark', 'system']);
 
@@ -15,7 +16,8 @@ export const getSettings = async (deviceId) => {
   const normalizedDeviceId = sanitizeDeviceId(deviceId);
   if (!normalizedDeviceId) return { theme: 'system', revealEnabled: true };
 
-  const pref = await Settings.findOne({ deviceId: normalizedDeviceId });
+  const hashedDeviceId = hashDeviceId(normalizedDeviceId);
+  const pref = await Settings.findOne({ deviceIdHash: hashedDeviceId });
   return pref || { theme: 'system', revealEnabled: true };
 };
 
@@ -25,6 +27,7 @@ export const updateSettings = async (deviceId, data) => {
     throw new AppError('deviceId is required', 400);
   }
   
+  const hashedDeviceId = hashDeviceId(normalizedDeviceId);
   const updateObj = {};
   if (data.theme) {
     if (!ALLOWED_THEMES.has(data.theme)) {
@@ -35,7 +38,7 @@ export const updateSettings = async (deviceId, data) => {
   if (typeof data.revealEnabled === 'boolean') updateObj.revealEnabled = data.revealEnabled;
 
   const pref = await Settings.findOneAndUpdate(
-    { deviceId: normalizedDeviceId },
+    { deviceIdHash: hashedDeviceId },
     { $set: updateObj },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );

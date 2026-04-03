@@ -10,7 +10,7 @@
 
 The Confession App is a full-stack web & App application designed to provide a safe space for users to share their thoughts, secrets, and feelings anonymously. Featuring a premium, fluid UI with a focus on privacy and community engagement, it allows users to post confessions, react with emotions, and participate in discussions without the need for traditional accounts.
 
-**Live Demo**: []
+**Live Demo**: [Play Store Link (Coming Soon)] | [https://confession-app-tau.vercel.app/]
 
 ## ✨ Key Features
 
@@ -267,6 +267,8 @@ confession-app/
 ├── README.md              # This file
 ├── CONTRIBUTING.md        # Contribution guidelines
 ├── CODE_OF_CONDUCT.md     # Code of conduct
+├── PLAY_STORE_ANDROID_GUIDE.md # Android Play Store deployment guide
+├── privacy-policy.md      # App privacy policy
 └── LICENSE                # MIT License
 ```
 

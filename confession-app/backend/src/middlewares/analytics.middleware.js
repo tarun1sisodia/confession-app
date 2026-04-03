@@ -1,5 +1,6 @@
 import UserTracker from '../api/confession/userTracker.model.js';
 import catchAsync from '../utils/catchAsync.js';
+import { hashDeviceId } from '../utils/hash.utils.js';
 
 const TRACK_INTERVAL_MS = 10 * 60 * 1000;
 const recentTrackMap = new Map();
@@ -26,16 +27,17 @@ export const trackUser = catchAsync(async (req, res, next) => {
   const now = Date.now();
 
   if (deviceId) {
+    const hashedDeviceId = hashDeviceId(deviceId);
     pruneRecentTrackMap(now);
-    const lastTrackedAt = recentTrackMap.get(deviceId) || 0;
+    const lastTrackedAt = recentTrackMap.get(hashedDeviceId) || 0;
     if (now - lastTrackedAt < TRACK_INTERVAL_MS) {
       next();
       return;
     }
 
-    recentTrackMap.set(deviceId, now);
+    recentTrackMap.set(hashedDeviceId, now);
     await UserTracker.findOneAndUpdate(
-      { deviceId },
+      { deviceIdHash: hashedDeviceId },
       {
         $set: {
           lastSeen: new Date(),

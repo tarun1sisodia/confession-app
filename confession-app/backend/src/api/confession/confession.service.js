@@ -162,10 +162,12 @@ const buildVoteMap = async (confessions, deviceId) => {
     return new Map();
   }
 
+  const hashedDeviceId = hashDeviceId(normalizeDeviceId(deviceId));
+
   const confessionIds = confessions.map((item) => item._id).filter(Boolean);
   const votes = await Vote.find({
     confessionId: { $in: confessionIds },
-    deviceId,
+    deviceIdHash: hashedDeviceId,
     commentId: { $exists: false }
   }).lean();
 
@@ -276,10 +278,10 @@ export const createConfession = async (data, deviceId) => {
 };
 
 export const votePost = async (id, deviceId, type, reactionValue = null) => {
-  const normalizedDeviceId = normalizeDeviceId(deviceId);
+  const hashedDeviceId = hashDeviceId(normalizeDeviceId(deviceId));
   await findPublicConfessionById(id);
 
-  const existingVote = await Vote.findOne({ confessionId: id, deviceId: normalizedDeviceId, commentId: { $exists: false } });
+  const existingVote = await Vote.findOne({ confessionId: id, deviceIdHash: hashedDeviceId, commentId: { $exists: false } });
   const update = { $inc: {} };
 
   let responseVote = null;
@@ -303,7 +305,7 @@ export const votePost = async (id, deviceId, type, reactionValue = null) => {
     applyVoteMutation(update, type, reactionValue, 1);
     await Vote.create({
       confessionId: id,
-      deviceId: normalizedDeviceId,
+      deviceIdHash: hashedDeviceId,
       voteType: type,
       reactionValue: type === 'reaction' ? reactionValue : undefined
     });
@@ -316,15 +318,15 @@ export const votePost = async (id, deviceId, type, reactionValue = null) => {
 };
 
 export const reportConfession = async (id, deviceId, reason = 'OTHER', details = '') => {
-  const normalizedDeviceId = normalizeDeviceId(deviceId);
+  const hashedDeviceId = hashDeviceId(normalizeDeviceId(deviceId));
   const confession = await findPublicConfessionById(id);
 
-  const existingReport = await Report.findOne({ confessionId: id, deviceId: normalizedDeviceId });
+  const existingReport = await Report.findOne({ confessionId: id, deviceIdHash: hashedDeviceId });
   if (existingReport) {
     return formatConfession(confession);
   }
 
-  await Report.create({ confessionId: id, deviceId: normalizedDeviceId, reason, details });
+  await Report.create({ confessionId: id, deviceIdHash: hashedDeviceId, reason, details });
   
   // Recalculate unique reports to be certain
   const uniqueReporters = await Report.countDocuments({ confessionId: id });
@@ -353,10 +355,10 @@ export const addComment = async (confessionId, text) => {
 export const voteComment = async (confessionId, commentId, isLike, deviceId) => {
   ensureValidObjectId(confessionId, 'Confession ID');
   ensureValidObjectId(commentId, 'Comment ID');
-  const normalizedDeviceId = normalizeDeviceId(deviceId);
+  const hashedDeviceId = hashDeviceId(normalizeDeviceId(deviceId));
   const type = isLike ? 'like' : 'dislike';
 
-  const existingVote = await Vote.findOne({ confessionId, commentId, deviceId: normalizedDeviceId });
+  const existingVote = await Vote.findOne({ confessionId, commentId, deviceIdHash: hashedDeviceId });
   
   const update = { $inc: {} };
 
@@ -375,7 +377,7 @@ export const voteComment = async (confessionId, commentId, isLike, deviceId) => 
       await existingVote.save();
     }
   } else {
-    await Vote.create({ confessionId, commentId, deviceId: normalizedDeviceId, voteType: type });
+    await Vote.create({ confessionId, commentId, deviceIdHash: hashedDeviceId, voteType: type });
     update.$inc[`comments.$.${type === 'like' ? 'likes' : 'dislikes'}`] = 1;
   }
 
@@ -392,10 +394,10 @@ export const voteComment = async (confessionId, commentId, isLike, deviceId) => 
 export const reactComment = async (confessionId, commentId, reactionValue, deviceId) => {
   ensureValidObjectId(confessionId, 'Confession ID');
   ensureValidObjectId(commentId, 'Comment ID');
-  const normalizedDeviceId = normalizeDeviceId(deviceId);
+  const hashedDeviceId = hashDeviceId(normalizeDeviceId(deviceId));
   if (!ALLOWED_REACTIONS.has(reactionValue)) throw new AppError('Invalid reaction type', 400);
 
-  const existingVote = await Vote.findOne({ confessionId, commentId, deviceId: normalizedDeviceId });
+  const existingVote = await Vote.findOne({ confessionId, commentId, deviceIdHash: hashedDeviceId });
   const update = { $inc: {} };
 
   if (existingVote) {
@@ -414,7 +416,7 @@ export const reactComment = async (confessionId, commentId, reactionValue, devic
       await existingVote.save();
     }
   } else {
-    await Vote.create({ confessionId, commentId, deviceId: normalizedDeviceId, voteType: 'reaction', reactionValue });
+    await Vote.create({ confessionId, commentId, deviceIdHash: hashedDeviceId, voteType: 'reaction', reactionValue });
     update.$inc[`comments.$.reactions.${reactionValue}`] = 1;
   }
 

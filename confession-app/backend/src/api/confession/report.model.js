@@ -7,11 +7,12 @@ const reportSchema = new mongoose.Schema(
       ref: 'Confession',
       required: true
     },
-    deviceId: {
+    deviceIdHash: {
       type: String,
       required: true,
       trim: true,
-      maxlength: 120
+      maxlength: 120,
+      index: true
     },
     reason: {
       type: String,
@@ -27,7 +28,10 @@ const reportSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-reportSchema.index({ confessionId: 1, deviceId: 1 }, { unique: true });
+reportSchema.index({ confessionId: 1, deviceIdHash: 1 }, { unique: true });
+
+// TTL index: Remove old reports after 90 days
+reportSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
 
 const Report = mongoose.model('Report', reportSchema);
 export default Report;

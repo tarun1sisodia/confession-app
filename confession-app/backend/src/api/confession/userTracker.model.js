@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const userTrackerSchema = new mongoose.Schema({
-  deviceId: {
+  deviceIdHash: {
     type: String,
     required: true,
     unique: true,
@@ -21,6 +21,9 @@ const userTrackerSchema = new mongoose.Schema({
     default: true
   }
 }, { timestamps: true });
+
+// TTL index: Remove inactive users after 30 days
+userTrackerSchema.index({ lastSeen: 1 }, { expireAfterSeconds: 2592000 });
 
 const UserTracker = mongoose.model('UserTracker', userTrackerSchema);
 export default UserTracker;

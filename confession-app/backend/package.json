@@ -12,8 +12,8 @@
     "start:production": "NODE_ENV=production node src/server.js",
     "start:staging": "NODE_ENV=staging node src/server.js",
     "start:test": "NODE_ENV=test node src/server.js",
-    "test": "NODE_ENV=test echo \"Error: no test specified\" && exit 1",
-    "test:watch": "NODE_ENV=test nodemon --exec npm test"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "cloudinary": "^2.9.0",
@@ -26,6 +26,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "vitest": "^4.1.2"
   }
 }

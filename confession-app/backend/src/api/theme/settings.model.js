@@ -1,10 +1,11 @@
 import mongoose from 'mongoose';
 
 const settingsSchema = new mongoose.Schema({
-  deviceId: {
+  deviceIdHash: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    index: true
   },
   theme: {
     type: String,
