@@ -1,8 +1,9 @@
 import crypto from 'crypto';
+import env from '../config/env.js';
 import AppError from './AppError.js';
 
 const getDeviceIdSecret = () => {
-  const secret = process.env.DEVICE_ID_SECRET?.trim();
+  const secret = env.DEVICE_ID_SECRET?.trim();
   if (!secret) {
     throw new AppError('Device identity hashing is not configured on the server', 503);
   }

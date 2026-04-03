@@ -8,6 +8,10 @@ yarn-error.log*
 # Environment variables (DO NOT COMMIT!)
 .env
 .env.local
+.env.development
+.env.production
+.env.test
+.env.staging
 .env.*.local
 
 # Build output

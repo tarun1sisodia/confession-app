@@ -1,25 +1,23 @@
 import { v2 as cloudinary } from 'cloudinary';
-import dotenv from 'dotenv';
+import env from '../config/env.js';
 import AppError from './AppError.js';
 
-dotenv.config();
-
 const hasCloudinaryConfig =
-  !!process.env.CLOUDINARY_URL ||
+  !!env.CLOUDINARY_URL ||
   (
-    process.env.CLOUDINARY_CLOUD_NAME &&
-    process.env.CLOUDINARY_API_KEY &&
-    process.env.CLOUDINARY_API_SECRET
+    env.CLOUDINARY_CLOUD_NAME &&
+    env.CLOUDINARY_API_KEY &&
+    env.CLOUDINARY_API_SECRET
   );
 
 if (hasCloudinaryConfig) {
-  if (process.env.CLOUDINARY_URL) {
-    cloudinary.config(process.env.CLOUDINARY_URL);
+  if (env.CLOUDINARY_URL) {
+    cloudinary.config(env.CLOUDINARY_URL);
   } else {
     cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET
+      cloud_name: env.CLOUDINARY_CLOUD_NAME,
+      api_key: env.CLOUDINARY_API_KEY,
+      api_secret: env.CLOUDINARY_API_SECRET
     });
   }
 }

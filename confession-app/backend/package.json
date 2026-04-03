@@ -6,9 +6,14 @@
   "main": "src/server.js",
   "scripts": {
     "setup": "npm install",
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "NODE_ENV=production node src/server.js",
+    "dev": "NODE_ENV=development nodemon src/server.js",
+    "dev:local": "NODE_ENV=development node src/server.js",
+    "start:production": "NODE_ENV=production node src/server.js",
+    "start:staging": "NODE_ENV=staging node src/server.js",
+    "start:test": "NODE_ENV=test node src/server.js",
+    "test": "NODE_ENV=test echo \"Error: no test specified\" && exit 1",
+    "test:watch": "NODE_ENV=test nodemon --exec npm test"
   },
   "dependencies": {
     "cloudinary": "^2.9.0",
