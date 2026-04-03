@@ -1,0 +1,30 @@
+# Render.yaml - Configuration for Render deployment
+
+services:
+  # Backend API Service
+  - type: web
+    name: confession-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MONGO_URI
+        sync: false
+        # Set this in Render dashboard as a secret
+      - key: FRONTEND_URL
+        value: https://your-frontend-url.com
+        # Update with your actual frontend URL
+      - key: DEVICE_ID_SECRET
+        generateValue: true
+        # Render will auto-generate a secure secret
+      - key: ADMIN_KEY
+        generateValue: true
+        # Render will auto-generate a secure secret
+      - key: CLOUDINARY_URL
+        sync: false
+        # Set this in Render dashboard as a secret
+    healthCheckPath: /health
+    autoDeploy: true

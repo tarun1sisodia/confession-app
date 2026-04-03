@@ -1,0 +1,20 @@
+# Docker ignore for root-level Dockerfile
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+README.md
+PLAY_STORE_ANDROID_GUIDE.md
+
+# Frontend files (not needed for backend deployment)
+confession-app/frontend/
+
+# Backend specific ignores
+confession-app/backend/node_modules
+confession-app/backend/uploads
+confession-app/backend/.env*
+confession-app/backend/Dockerfile
+confession-app/backend/.dockerignore
