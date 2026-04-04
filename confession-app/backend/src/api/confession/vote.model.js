@@ -17,8 +17,8 @@ const voteSchema = new mongoose.Schema({
   },
   voteType: {
     type: String,
-    enum: ['like', 'dislike', 'reaction'],
-    required: true
+    enum: ['like', 'dislike', 'reaction', 'none'],
+    required: false
   },
   reactionValue: {
     type: String,

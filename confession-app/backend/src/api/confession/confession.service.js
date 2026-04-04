@@ -149,7 +149,7 @@ const formatConfession = (doc, userVoteMap = new Map()) => {
 
   const vote = userVoteMap.get(String(obj._id));
   if (vote) {
-    obj.userVote = vote.voteType;
+    obj.userVote = (vote.voteType === 'reaction' || vote.voteType === 'none') ? null : vote.voteType;
     obj.userReaction = vote.reactionValue || null;
   }
 
@@ -283,35 +283,75 @@ export const votePost = async (id, deviceId, type, reactionValue = null) => {
 
   const existingVote = await Vote.findOne({ confessionId: id, deviceIdHash: hashedDeviceId, commentId: { $exists: false } });
   const update = { $inc: {} };
-
   let responseVote = null;
 
   if (existingVote) {
-    applyVoteMutation(update, existingVote.voteType, existingVote.reactionValue, -1);
+    let currentVoteType = existingVote.voteType || 'none';
+    let currentReactionValue = existingVote.reactionValue || null;
 
-    const isSameSelection =
-      existingVote.voteType === type && (existingVote.reactionValue || null) === (reactionValue || null);
+    // Normalize legacy documents
+    if (currentVoteType === 'reaction') {
+      currentVoteType = 'none';
+    }
 
-    if (isSameSelection) {
-      await Vote.deleteOne({ _id: existingVote._id });
+    if (type === 'reaction') {
+      // It's a reaction toggle
+      if (currentReactionValue === reactionValue) {
+        // Toggle OFF reaction
+        applyVoteMutation(update, 'reaction', currentReactionValue, -1);
+        currentReactionValue = null;
+      } else {
+        // Switch or ADD reaction
+        if (currentReactionValue) applyVoteMutation(update, 'reaction', currentReactionValue, -1);
+        applyVoteMutation(update, 'reaction', reactionValue, 1);
+        currentReactionValue = reactionValue;
+      }
     } else {
-      applyVoteMutation(update, type, reactionValue, 1);
-      existingVote.voteType = type;
-      existingVote.reactionValue = type === 'reaction' ? reactionValue : undefined;
+      // It's a like/dislike toggle
+      if (currentVoteType === type) {
+        // Toggle OFF vote
+        applyVoteMutation(update, currentVoteType, null, -1);
+        currentVoteType = 'none';
+      } else {
+        // Switch or ADD vote
+        if (currentVoteType !== 'none') applyVoteMutation(update, currentVoteType, null, -1);
+        applyVoteMutation(update, type, null, 1);
+        currentVoteType = type;
+      }
+    }
+
+    if (currentVoteType === 'none' && !currentReactionValue) {
+      // Both states are empty, completely delete the document
+      await Vote.deleteOne({ _id: existingVote._id });
+      responseVote = null;
+    } else {
+      existingVote.voteType = currentVoteType;
+      existingVote.reactionValue = currentReactionValue;
       await existingVote.save();
-      responseVote = { voteType: type, reactionValue };
+      responseVote = existingVote;
     }
   } else {
-    applyVoteMutation(update, type, reactionValue, 1);
-    await Vote.create({
-      confessionId: id,
-      deviceIdHash: hashedDeviceId,
-      voteType: type,
-      reactionValue: type === 'reaction' ? reactionValue : undefined
-    });
-    responseVote = { voteType: type, reactionValue };
+    // Completely new interaction document
+    if (type === 'reaction') {
+      applyVoteMutation(update, 'reaction', reactionValue, 1);
+      responseVote = await Vote.create({
+        confessionId: id,
+        deviceIdHash: hashedDeviceId,
+        voteType: 'none',
+        reactionValue
+      });
+    } else {
+      applyVoteMutation(update, type, null, 1);
+      responseVote = await Vote.create({
+        confessionId: id,
+        deviceIdHash: hashedDeviceId,
+        voteType: type,
+        reactionValue: undefined
+      });
+    }
   }
 
+  // Update confession with the increment/decrement map
   const updated = await Confession.findByIdAndUpdate(id, update, { new: true });
   const voteMap = responseVote ? new Map([[String(updated._id), responseVote]]) : new Map();
   return formatConfession(updated, voteMap);
