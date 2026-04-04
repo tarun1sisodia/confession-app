@@ -33,10 +33,18 @@ try {
   console.error('  Image uploads will fail. Please check directory permissions.');
 }
 
-const allowedOrigins = env.FRONTEND_URL
+const configuredOrigins = env.FRONTEND_URL
   .split(",")
   .map(origin => origin.trim())
   .filter(Boolean);
+
+// Always allow standard Capacitor local protocols for native apps
+const allowedOrigins = [
+  ...configuredOrigins,
+  'capacitor://localhost',
+  'http://localhost',
+  'ionic://localhost'
+];
 
 // Security Headers with Helmet
 app.use(helmet({
@@ -71,7 +79,7 @@ app.use(cors({
       return;
     }
 
-    callback(new Error("Not allowed by CORS"));
+    callback(new AppError(`Origin ${origin} not allowed by CORS`, 403));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true
