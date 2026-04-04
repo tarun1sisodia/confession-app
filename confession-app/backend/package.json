@@ -10,10 +10,7 @@
     "dev": "NODE_ENV=development nodemon src/server.js",
     "dev:local": "NODE_ENV=development node src/server.js",
     "start:production": "NODE_ENV=production node src/server.js",
-    "start:staging": "NODE_ENV=staging node src/server.js",
-    "start:test": "NODE_ENV=test node src/server.js",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "start:staging": "NODE_ENV=staging node src/server.js"
   },
   "dependencies": {
     "cloudinary": "^2.9.0",
@@ -26,9 +23,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "mongodb-memory-server": "^11.0.1",
-    "nodemon": "^3.0.1",
-    "supertest": "^7.2.2",
-    "vitest": "^4.1.2"
+    "nodemon": "^3.0.1"
   }
 }
