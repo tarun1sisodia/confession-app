@@ -33,7 +33,11 @@ self.addEventListener("fetch", (event) => {
           caches.open("confessly-shell-v1").then((cache) => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => caches.match("/"));
+        .catch(() => {
+          if (event.request.mode === 'navigate') {
+            return caches.match("/");
+          }
+        });
     })
   );
 });

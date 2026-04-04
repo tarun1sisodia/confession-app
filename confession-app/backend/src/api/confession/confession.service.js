@@ -269,7 +269,7 @@ export const createConfession = async (data, deviceId) => {
     imageUrl: normalizeImageUrl(data.imageUrl),
     text,
     type,
-    authorDeviceIdHash: deviceId ? hashDeviceId(deviceId) : undefined,
+    authorDeviceIdHash: deviceId ? hashDeviceId(normalizeDeviceId(deviceId)) : undefined,
     blurred: !!data.blurred
   };
 
