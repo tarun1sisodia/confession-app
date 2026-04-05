@@ -12,9 +12,9 @@ export default function manifest() {
     orientation: "portrait",
     icons: [
       {
-        src: "/icon.svg",
+        src: "/icon.png",
         sizes: "any",
-        type: "image/svg+xml"
+        type: "image/png"
       }
     ]
   };

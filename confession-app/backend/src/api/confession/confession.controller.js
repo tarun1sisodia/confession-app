@@ -51,15 +51,15 @@ export const uploadImage = catchAsync(async (req, res) => {
   }
 
   const filePath = req.file.path;
-  
+
   try {
     const imageUrl = await uploadToCloudinary(filePath);
-    
+
     // Cleanup local file after successful upload
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
-    
+
     res.status(200).json({ status: 'success', data: { imageUrl } });
   } catch (error) {
     // Cleanup local file on error

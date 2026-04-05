@@ -72,7 +72,9 @@ export function MobileAppShell() {
     <>
       {loading ? (
         <div className="app-loader">
-          <div className="app-loader-mark">C</div>
+          <div className="app-loader-mark">
+            <img src="/logo.png" alt="Confessly" className="brand-logo" />
+          </div>
           <p>Loading your confession world...</p>
         </div>
       ) : null}

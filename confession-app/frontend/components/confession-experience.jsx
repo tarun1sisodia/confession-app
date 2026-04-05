@@ -489,7 +489,9 @@ export function ConfessionExperience({ mode }) {
       <main className="frame">
         <header className="topbar">
           <div className="topbar-brand">
-            <span className="brand-mark">C</span>
+            <div className="brand-mark">
+              <img src="/logo.png" alt="Confessly" className="brand-logo" />
+            </div>
           </div>
           <div className="hero-quick-actions">
             <button className="icon-button" onClick={toggleReveal} aria-label="Toggle blur">
