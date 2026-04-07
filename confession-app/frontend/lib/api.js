@@ -3,7 +3,12 @@ import { getDeviceId } from "@/lib/storage";
 // When running as a Capacitor native app (Android/iOS), relative URLs like
 // "/api" resolve to https://localhost/api which has no backend. In that case
 // fall back to the production backend URL so the app can reach the server.
+// NOTE: _isNative is always false during SSR/build (window is undefined).
+// At runtime this is a static export, so all API calls happen client-side.
 const _envApiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+const _nativeApiUrl =
+  process.env.NEXT_PUBLIC_NATIVE_API_URL ||
+  "https://confession-app-a9eu.onrender.com/api";
 const _isNative =
   typeof window !== "undefined" &&
   typeof window.Capacitor !== "undefined" &&
@@ -12,7 +17,7 @@ const _isNative =
 
 const API_ROOT = (
   _envApiUrl ||
-  (_isNative ? "https://confession-app-a9eu.onrender.com/api" : "/api")
+  (_isNative ? _nativeApiUrl : "/api")
 ).replace(/\/$/, "");
 
 async function request(path, options = {}) {
