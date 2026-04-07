@@ -43,6 +43,7 @@ const allowedOrigins = [
   ...configuredOrigins,
   'capacitor://localhost',
   'http://localhost',
+  'https://localhost',
   'ionic://localhost'
 ];
 
@@ -54,7 +55,7 @@ app.use(helmet({
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "https:", "data:", "blob:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "https://confession-app-a9eu.onrender.com", "https://*.onrender.com"],
       fontSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
