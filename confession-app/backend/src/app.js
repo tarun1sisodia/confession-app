@@ -38,10 +38,12 @@ const configuredOrigins = env.FRONTEND_URL
   .map(origin => origin.trim())
   .filter(Boolean);
 
-// Always allow standard Capacitor local protocols for native apps
+// Always allow standard Capacitor local protocols for native apps.
+// 'https://localhost' is used when capacitor.config.json sets androidScheme: "https".
 const allowedOrigins = [
   ...configuredOrigins,
   'capacitor://localhost',
+  'https://localhost',
   'http://localhost',
   'ionic://localhost'
 ];

@@ -1,8 +1,18 @@
 import { getDeviceId } from "@/lib/storage";
 
+// When running as a Capacitor native app (Android/iOS), relative URLs like
+// "/api" resolve to https://localhost/api which has no backend. In that case
+// fall back to the production backend URL so the app can reach the server.
+const _envApiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+const _isNative =
+  typeof window !== "undefined" &&
+  typeof window.Capacitor !== "undefined" &&
+  typeof window.Capacitor.isNativePlatform === "function" &&
+  window.Capacitor.isNativePlatform();
+
 const API_ROOT = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "/api"
+  _envApiUrl ||
+  (_isNative ? "https://confession-app-a9eu.onrender.com/api" : "/api")
 ).replace(/\/$/, "");
 
 async function request(path, options = {}) {
